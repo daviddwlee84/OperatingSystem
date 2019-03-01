@@ -5,7 +5,15 @@
 * [Development Environment](../../Notes/DevEnvironment.md)
   * 32-bit gcc, g++
 
-## Steps
+## Exercise
+
+1. Learn Makefile
+   * Understand Nachos Makefile structure
+2. Understanding Nachos code structure
+   * Read `threads/main.cc`, understand the booting process.
+   * Read `threads/system.cc` and `threads/system.h`, understand the OS and VM component
+
+## Steps for Nachos-3.4
 
 Because we compile 32-bit program on 64-bit OS. We need to add some flag in the `Makefile`.
 
@@ -39,6 +47,27 @@ Network I/O: packets received 0, sent 0
 Cleaning up...
 ```
 
+## Steps for Nachos-4.1
+
+1. Compile `coff2noff`
+   1. Run `coff2noff/configure`
+   2. Modify Makefile and add 32bit flag
+2. Modify `code/lib/sysdep.h`
+   * Change `#include "iostream.h"` to
+        ```c
+        #include "iostream"
+        using namespace std;
+        ```
+3. Go to `code/build.linux`
+4. modify Makefile
+   * add 32bit flag
+   * remove `-fwritable-strings` form CFLAGS
+5. `make depend`
+6. `make nachos` or just `make` (TODO)
+7. Run `./nachos -u`
+
+> haven't finish yet
+
 ## Trouble shooting
 
 1. `code/threads/switch.c > switch.s`
@@ -69,3 +98,16 @@ Cleaning up...
     > Program can be check by `$ file filename`. ([How to check if my software is 32-bit or 64-bit](https://askubuntu.com/questions/437857/how-to-check-if-my-software-is-32-bit-or-64-bit))
 
     > didn't add `-m32` to `code/bin/Makefile`
+
+4. make (Nachos-4.1 build.linux)
+
+    ```txt
+    /usr/include/x86_64-linux-gnu/c++/7/32/bits/error_constants.h
+
+    error: ‘EAFNOSUPPORT’ was not declared in this scope
+    error: ‘EADDRINUSE’ was not declared in this scope
+    ...
+    Makefile:339 recipe for target 'bitmap.o' failed
+    ```
+
+    > It seems to be C vs. C++ problem, not sure.
