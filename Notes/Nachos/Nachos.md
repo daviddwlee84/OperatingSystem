@@ -13,6 +13,13 @@ Not Another Completely Heuristic Operating System, or Nachos, is instructional s
 
 ## Links
 
+* [**Washington Nachos (Official Website)**](https://homes.cs.washington.edu/~tom/nachos/)
+* [**Nachos Beginner's Guide**](https://www.ida.liu.se/~TDDI04/material/begguide/) - Nachos support documentation
+  * [A Road Map Through Nachos](https://www.ida.liu.se/~TDDI04/material/begguide/roadmap/index.html)
+* [NYU Nachos Resources](https://cs.nyu.edu/courses/spring04/V22.0202-001/nachos-resources.htm)
+* [Nachos Overview](https://www.cs.odu.edu/~cs471/soumya/salsa.html)
+  * [Nachos Details](https://www.cs.odu.edu/~cs471/soumya/details.html)
+
 ### UC Berkeley
 
 * [CS162: Operating Systems and Systems Programming](https://cs162.eecs.berkeley.edu/)
@@ -32,8 +39,11 @@ Not Another Completely Heuristic Operating System, or Nachos, is instructional s
 
 * [A Road Map Through Nachos](https://users.cs.duke.edu/~narten/110/nachos/main/main.html)
 * [Github - Nachos 4.1](https://github.com/tfriedel/nachos)
+* [University of Chicago Nachos](http://people.cs.uchicago.edu/~odonnell/OData/Courses/CS230/NACHOS/reading-code.html)
+* [**Build Nachos 4.1**](http://web-ext.u-aizu.ac.jp/~yliu/teaching/os/lab01.html)
 
 #### JAVA
 
 * [A Guide to Nachos 5.0j](http://inst.eecs.berkeley.edu/~cs162/sp07/Nachos/walk/walk.html)
 * [Github - Nachos for Java](https://github.com/thinkhy/CS162/tree/master/nachos)
+* [Nachos Projects](https://people.eecs.berkeley.edu/~kubitron/courses/cs162-F05/Nachos/index.html)
