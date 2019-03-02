@@ -1,4 +1,4 @@
-# OperatingSystem
+# Operating System
 
 PKU OS course project and notes
 
@@ -12,8 +12,15 @@ Lab 1|[Thread mechanism](Lab/Lab1_ThreadMechanism/README.md)|Multi-thread
 ## Notes
 
 * [Nachos](Notes/Nachos/Nachos.md)
+* [Trace Code](Notes/TraceCode.md)
 
 ## Books
 
 * Modern Operating System 4ed.
 * Operating System Concepts 9ed.
+
+## Resources
+
+* PKU Operating System Principle
+  * [Coursera - PKU Operating Systems](https://www.coursera.org/learn/os-pku)
+  * [Chinese MOOCS - PKU Operating System Principle](http://www.chinesemooc.org/mooc/4747)
