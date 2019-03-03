@@ -1,0 +1,255 @@
+
+synch.o:     file format elf32-i386
+
+Disassembly of section .text:
+
+00000000 <__9SemaphorePci>:
+   0:	55                   	push   %ebp
+   1:	89 e5                	mov    %esp,%ebp
+   3:	57                   	push   %edi
+   4:	56                   	push   %esi
+   5:	53                   	push   %ebx
+   6:	8b 5d 08             	mov    0x8(%ebp),%ebx
+   9:	8b 45 0c             	mov    0xc(%ebp),%eax
+   c:	89 03                	mov    %eax,(%ebx)
+   e:	8b 45 10             	mov    0x10(%ebp),%eax
+  11:	89 43 04             	mov    %eax,0x4(%ebx)
+  14:	6a 08                	push   $0x8
+  16:	e8 fc ff ff ff       	call   17 <__9SemaphorePci+0x17>
+  1b:	83 c4 04             	add    $0x4,%esp
+  1e:	89 c0                	mov    %eax,%eax
+  20:	89 c6                	mov    %eax,%esi
+  22:	56                   	push   %esi
+  23:	e8 fc ff ff ff       	call   24 <__9SemaphorePci+0x24>
+  28:	83 c4 04             	add    $0x4,%esp
+  2b:	89 c7                	mov    %eax,%edi
+  2d:	eb 06                	jmp    35 <__9SemaphorePci+0x35>
+  2f:	90                   	nop    
+  30:	e8 fc ff ff ff       	call   31 <__9SemaphorePci+0x31>
+  35:	89 7b 08             	mov    %edi,0x8(%ebx)
+  38:	89 d8                	mov    %ebx,%eax
+  3a:	eb 24                	jmp    60 <__9SemaphorePci+0x60>
+  3c:	eb 22                	jmp    60 <__9SemaphorePci+0x60>
+  3e:	89 f6                	mov    %esi,%esi
+  40:	56                   	push   %esi
+  41:	e8 fc ff ff ff       	call   42 <__9SemaphorePci+0x42>
+  46:	83 c4 04             	add    $0x4,%esp
+  49:	eb e5                	jmp    30 <__9SemaphorePci+0x30>
+  4b:	eb 08                	jmp    55 <__9SemaphorePci+0x55>
+  4d:	8d 76 00             	lea    0x0(%esi),%esi
+  50:	e8 fc ff ff ff       	call   51 <__9SemaphorePci+0x51>
+  55:	e8 fc ff ff ff       	call   56 <__9SemaphorePci+0x56>
+  5a:	8d b6 00 00 00 00    	lea    0x0(%esi),%esi
+  60:	8d 65 f4             	lea    0xfffffff4(%ebp),%esp
+  63:	5b                   	pop    %ebx
+  64:	5e                   	pop    %esi
+  65:	5f                   	pop    %edi
+  66:	c9                   	leave  
+  67:	c3                   	ret    
+
+00000068 <_._9Semaphore>:
+  68:	55                   	push   %ebp
+  69:	89 e5                	mov    %esp,%ebp
+  6b:	53                   	push   %ebx
+  6c:	8b 5d 08             	mov    0x8(%ebp),%ebx
+  6f:	83 7b 08 00          	cmpl   $0x0,0x8(%ebx)
+  73:	74 10                	je     85 <_._9Semaphore+0x1d>
+  75:	6a 03                	push   $0x3
+  77:	8b 43 08             	mov    0x8(%ebx),%eax
+  7a:	50                   	push   %eax
+  7b:	e8 fc ff ff ff       	call   7c <_._9Semaphore+0x14>
+  80:	83 c4 08             	add    $0x8,%esp
+  83:	eb 00                	jmp    85 <_._9Semaphore+0x1d>
+  85:	8b 45 0c             	mov    0xc(%ebp),%eax
+  88:	83 e0 01             	and    $0x1,%eax
+  8b:	85 c0                	test   %eax,%eax
+  8d:	74 11                	je     a0 <_._9Semaphore+0x38>
+  8f:	53                   	push   %ebx
+  90:	e8 fc ff ff ff       	call   91 <_._9Semaphore+0x29>
+  95:	83 c4 04             	add    $0x4,%esp
+  98:	eb 06                	jmp    a0 <_._9Semaphore+0x38>
+  9a:	8d b6 00 00 00 00    	lea    0x0(%esi),%esi
+  a0:	8b 5d fc             	mov    0xfffffffc(%ebp),%ebx
+  a3:	c9                   	leave  
+  a4:	c3                   	ret    
+  a5:	8d 76 00             	lea    0x0(%esi),%esi
+
+000000a8 <P__9Semaphore>:
+  a8:	55                   	push   %ebp
+  a9:	89 e5                	mov    %esp,%ebp
+  ab:	83 ec 04             	sub    $0x4,%esp
+  ae:	53                   	push   %ebx
+  af:	8b 5d 08             	mov    0x8(%ebp),%ebx
+  b2:	6a 00                	push   $0x0
+  b4:	a1 00 00 00 00       	mov    0x0,%eax
+  b9:	50                   	push   %eax
+  ba:	e8 fc ff ff ff       	call   bb <P__9Semaphore+0x13>
+  bf:	83 c4 08             	add    $0x8,%esp
+  c2:	89 c0                	mov    %eax,%eax
+  c4:	89 45 fc             	mov    %eax,0xfffffffc(%ebp)
+  c7:	83 7b 04 00          	cmpl   $0x0,0x4(%ebx)
+  cb:	74 03                	je     d0 <P__9Semaphore+0x28>
+  cd:	eb 23                	jmp    f2 <P__9Semaphore+0x4a>
+  cf:	90                   	nop    
+  d0:	a1 00 00 00 00       	mov    0x0,%eax
+  d5:	50                   	push   %eax
+  d6:	8b 43 08             	mov    0x8(%ebx),%eax
+  d9:	50                   	push   %eax
+  da:	e8 fc ff ff ff       	call   db <P__9Semaphore+0x33>
+  df:	83 c4 08             	add    $0x8,%esp
+  e2:	a1 00 00 00 00       	mov    0x0,%eax
+  e7:	50                   	push   %eax
+  e8:	e8 fc ff ff ff       	call   e9 <P__9Semaphore+0x41>
+  ed:	83 c4 04             	add    $0x4,%esp
+  f0:	eb d5                	jmp    c7 <P__9Semaphore+0x1f>
+  f2:	ff 4b 04             	decl   0x4(%ebx)
+  f5:	8b 45 fc             	mov    0xfffffffc(%ebp),%eax
+  f8:	50                   	push   %eax
+  f9:	a1 00 00 00 00       	mov    0x0,%eax
+  fe:	50                   	push   %eax
+  ff:	e8 fc ff ff ff       	call   100 <P__9Semaphore+0x58>
+ 104:	83 c4 08             	add    $0x8,%esp
+ 107:	8b 5d f8             	mov    0xfffffff8(%ebp),%ebx
+ 10a:	c9                   	leave  
+ 10b:	c3                   	ret    
+
+0000010c <V__9Semaphore>:
+ 10c:	55                   	push   %ebp
+ 10d:	89 e5                	mov    %esp,%ebp
+ 10f:	83 ec 08             	sub    $0x8,%esp
+ 112:	53                   	push   %ebx
+ 113:	8b 5d 08             	mov    0x8(%ebp),%ebx
+ 116:	6a 00                	push   $0x0
+ 118:	a1 00 00 00 00       	mov    0x0,%eax
+ 11d:	50                   	push   %eax
+ 11e:	e8 fc ff ff ff       	call   11f <V__9Semaphore+0x13>
+ 123:	83 c4 08             	add    $0x8,%esp
+ 126:	89 c0                	mov    %eax,%eax
+ 128:	89 45 f8             	mov    %eax,0xfffffff8(%ebp)
+ 12b:	8b 43 08             	mov    0x8(%ebx),%eax
+ 12e:	50                   	push   %eax
+ 12f:	e8 fc ff ff ff       	call   130 <V__9Semaphore+0x24>
+ 134:	83 c4 04             	add    $0x4,%esp
+ 137:	89 45 fc             	mov    %eax,0xfffffffc(%ebp)
+ 13a:	83 7d fc 00          	cmpl   $0x0,0xfffffffc(%ebp)
+ 13e:	74 12                	je     152 <V__9Semaphore+0x46>
+ 140:	8b 45 fc             	mov    0xfffffffc(%ebp),%eax
+ 143:	50                   	push   %eax
+ 144:	a1 00 00 00 00       	mov    0x0,%eax
+ 149:	50                   	push   %eax
+ 14a:	e8 fc ff ff ff       	call   14b <V__9Semaphore+0x3f>
+ 14f:	83 c4 08             	add    $0x8,%esp
+ 152:	ff 43 04             	incl   0x4(%ebx)
+ 155:	8b 45 f8             	mov    0xfffffff8(%ebp),%eax
+ 158:	50                   	push   %eax
+ 159:	a1 00 00 00 00       	mov    0x0,%eax
+ 15e:	50                   	push   %eax
+ 15f:	e8 fc ff ff ff       	call   160 <V__9Semaphore+0x54>
+ 164:	83 c4 08             	add    $0x8,%esp
+ 167:	8b 5d f4             	mov    0xfffffff4(%ebp),%ebx
+ 16a:	c9                   	leave  
+ 16b:	c3                   	ret    
+
+0000016c <__4LockPc>:
+ 16c:	55                   	push   %ebp
+ 16d:	89 e5                	mov    %esp,%ebp
+ 16f:	8b 45 08             	mov    0x8(%ebp),%eax
+ 172:	eb 00                	jmp    174 <__4LockPc+0x8>
+ 174:	c9                   	leave  
+ 175:	c3                   	ret    
+ 176:	89 f6                	mov    %esi,%esi
+
+00000178 <_._4Lock>:
+ 178:	55                   	push   %ebp
+ 179:	89 e5                	mov    %esp,%ebp
+ 17b:	53                   	push   %ebx
+ 17c:	8b 5d 08             	mov    0x8(%ebp),%ebx
+ 17f:	8b 45 0c             	mov    0xc(%ebp),%eax
+ 182:	83 e0 01             	and    $0x1,%eax
+ 185:	85 c0                	test   %eax,%eax
+ 187:	74 0b                	je     194 <_._4Lock+0x1c>
+ 189:	53                   	push   %ebx
+ 18a:	e8 fc ff ff ff       	call   18b <_._4Lock+0x13>
+ 18f:	83 c4 04             	add    $0x4,%esp
+ 192:	eb 00                	jmp    194 <_._4Lock+0x1c>
+ 194:	8b 5d fc             	mov    0xfffffffc(%ebp),%ebx
+ 197:	c9                   	leave  
+ 198:	c3                   	ret    
+ 199:	8d 76 00             	lea    0x0(%esi),%esi
+
+0000019c <Acquire__4Lock>:
+ 19c:	55                   	push   %ebp
+ 19d:	89 e5                	mov    %esp,%ebp
+ 19f:	8b 45 08             	mov    0x8(%ebp),%eax
+ 1a2:	c9                   	leave  
+ 1a3:	c3                   	ret    
+
+000001a4 <Release__4Lock>:
+ 1a4:	55                   	push   %ebp
+ 1a5:	89 e5                	mov    %esp,%ebp
+ 1a7:	8b 45 08             	mov    0x8(%ebp),%eax
+ 1aa:	c9                   	leave  
+ 1ab:	c3                   	ret    
+
+000001ac <__9ConditionPc>:
+ 1ac:	55                   	push   %ebp
+ 1ad:	89 e5                	mov    %esp,%ebp
+ 1af:	8b 45 08             	mov    0x8(%ebp),%eax
+ 1b2:	eb 00                	jmp    1b4 <__9ConditionPc+0x8>
+ 1b4:	c9                   	leave  
+ 1b5:	c3                   	ret    
+ 1b6:	89 f6                	mov    %esi,%esi
+
+000001b8 <_._9Condition>:
+ 1b8:	55                   	push   %ebp
+ 1b9:	89 e5                	mov    %esp,%ebp
+ 1bb:	53                   	push   %ebx
+ 1bc:	8b 5d 08             	mov    0x8(%ebp),%ebx
+ 1bf:	8b 45 0c             	mov    0xc(%ebp),%eax
+ 1c2:	83 e0 01             	and    $0x1,%eax
+ 1c5:	85 c0                	test   %eax,%eax
+ 1c7:	74 0b                	je     1d4 <_._9Condition+0x1c>
+ 1c9:	53                   	push   %ebx
+ 1ca:	e8 fc ff ff ff       	call   1cb <_._9Condition+0x13>
+ 1cf:	83 c4 04             	add    $0x4,%esp
+ 1d2:	eb 00                	jmp    1d4 <_._9Condition+0x1c>
+ 1d4:	8b 5d fc             	mov    0xfffffffc(%ebp),%ebx
+ 1d7:	c9                   	leave  
+ 1d8:	c3                   	ret    
+ 1d9:	8d 76 00             	lea    0x0(%esi),%esi
+
+000001dc <Wait__9ConditionP4Lock>:
+ 1dc:	55                   	push   %ebp
+ 1dd:	89 e5                	mov    %esp,%ebp
+ 1df:	53                   	push   %ebx
+ 1e0:	8b 5d 08             	mov    0x8(%ebp),%ebx
+ 1e3:	68 05 00 00 00       	push   $0x5
+ 1e8:	6a 6e                	push   $0x6e
+ 1ea:	68 20 00 00 00       	push   $0x20
+ 1ef:	a1 00 00 00 00       	mov    0x0,%eax
+ 1f4:	50                   	push   %eax
+ 1f5:	e8 fc ff ff ff       	call   1f6 <Wait__9ConditionP4Lock+0x1a>
+ 1fa:	83 c4 10             	add    $0x10,%esp
+ 1fd:	a1 00 00 00 00       	mov    0x0,%eax
+ 202:	50                   	push   %eax
+ 203:	e8 fc ff ff ff       	call   204 <Wait__9ConditionP4Lock+0x28>
+ 208:	83 c4 04             	add    $0x4,%esp
+ 20b:	e8 fc ff ff ff       	call   20c <Wait__9ConditionP4Lock+0x30>
+ 210:	8b 5d fc             	mov    0xfffffffc(%ebp),%ebx
+ 213:	c9                   	leave  
+ 214:	c3                   	ret    
+ 215:	8d 76 00             	lea    0x0(%esi),%esi
+
+00000218 <Signal__9ConditionP4Lock>:
+ 218:	55                   	push   %ebp
+ 219:	89 e5                	mov    %esp,%ebp
+ 21b:	8b 45 08             	mov    0x8(%ebp),%eax
+ 21e:	c9                   	leave  
+ 21f:	c3                   	ret    
+
+00000220 <Broadcast__9ConditionP4Lock>:
+ 220:	55                   	push   %ebp
+ 221:	89 e5                	mov    %esp,%ebp
+ 223:	8b 45 08             	mov    0x8(%ebp),%eax
+ 226:	c9                   	leave  
+ 227:	c3                   	ret    

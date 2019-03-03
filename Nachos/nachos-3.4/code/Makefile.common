@@ -1,0 +1,144 @@
+# This is part of a GNU Makefile, included by the Makefiles in
+# each of the subdirectories.  
+#
+# This file includes all of the baseline code provided by Nachos.
+# Whenever you add a .h or .cc file, put it in the appropriate 
+# _H,_C, or _O list.
+#
+# The dependency graph between assignments is:
+#   1. THREADS before everything else
+#   2. USERPROG must come before VM
+#   3. USERPROG can come before or after FILESYS, but if USERPROG comes 
+#	before (as in this distribution), then it must define FILESYS_STUB
+#
+#   Other than that, you have complete flexibility.
+#
+# Also whenever you change the include structure of your program, you should 
+# do a gmake depend in the subdirectory -- this will modify the Makefile
+# to keep track of the new dependency.
+
+# You might want to play with the CFLAGS, but if you use -O it may
+# break the thread system.  You might want to use -fno-inline if
+# you need to call some inline functions from the debugger.
+
+# Copyright (c) 1992 The Regents of the University of California.
+# All rights reserved.  See copyright.h for copyright notice and limitation 
+# of liability and disclaimer of warranty provisions.
+
+CFLAGS = -g -Wall -Wshadow -fpermissive $(INCPATH) $(DEFINES) $(HOST) -DCHANGED 
+
+# These definitions may change as the software is updated.
+# Some of them are also system dependent
+CPP= gcc -E
+CC = g++
+LD = g++
+AS = as
+
+PROGRAM = nachos
+
+THREAD_H =../threads/copyright.h\
+	../threads/list.h\
+	../threads/scheduler.h\
+	../threads/synch.h \
+	../threads/synchlist.h\
+	../threads/system.h\
+	../threads/thread.h\
+	../threads/utility.h\
+	../machine/interrupt.h\
+	../machine/sysdep.h\
+	../machine/stats.h\
+	../machine/timer.h\
+	../machine/elevator.h\
+	../machine/elevatortest.h
+
+THREAD_C =../threads/main.cc\
+	../threads/list.cc\
+	../threads/scheduler.cc\
+	../threads/synch.cc \
+	../threads/synchlist.cc\
+	../threads/system.cc\
+	../threads/thread.cc\
+	../threads/utility.cc\
+	../threads/threadtest.cc\
+	../machine/interrupt.cc\
+	../machine/sysdep.cc\
+	../machine/stats.cc\
+	../machine/timer.cc\
+	../machine/elevatortest.cc\
+	../machine/elevator.cc
+
+THREAD_S = ../threads/switch.s
+
+THREAD_O =main.o list.o scheduler.o synch.o synchlist.o system.o thread.o \
+	utility.o threadtest.o interrupt.o stats.o sysdep.o timer.o elevator.o \
+	elevatortest.o
+
+USERPROG_H = ../userprog/addrspace.h\
+	../userprog/bitmap.h\
+	../filesys/filesys.h\
+	../filesys/openfile.h\
+	../machine/console.h\
+	../machine/machine.h\
+	../machine/mipssim.h\
+	../machine/translate.h
+
+USERPROG_C = ../userprog/addrspace.cc\
+	../userprog/bitmap.cc\
+	../userprog/exception.cc\
+	../userprog/progtest.cc\
+	../machine/console.cc\
+	../machine/machine.cc\
+	../machine/mipssim.cc\
+	../machine/translate.cc
+
+USERPROG_O = addrspace.o bitmap.o exception.o progtest.o console.o machine.o \
+	mipssim.o translate.o
+
+VM_H = 
+VM_C = 
+VM_O = 
+
+FILESYS_H =../filesys/directory.h \
+	../filesys/filehdr.h\
+	../filesys/filesys.h \
+	../filesys/openfile.h\
+	../filesys/synchdisk.h\
+	../machine/disk.h
+FILESYS_C =../filesys/directory.cc\
+	../filesys/filehdr.cc\
+	../filesys/filesys.cc\
+	../filesys/fstest.cc\
+	../filesys/openfile.cc\
+	../filesys/synchdisk.cc\
+	../machine/disk.cc
+FILESYS_O =directory.o filehdr.o filesys.o fstest.o openfile.o synchdisk.o\
+	disk.o
+
+NETWORK_H = ../network/post.h ../machine/network.h
+NETWORK_C = ../network/nettest.cc ../network/post.cc ../machine/network.cc
+NETWORK_O = nettest.o post.o network.o
+
+S_OFILES = switch.o
+
+OFILES = $(C_OFILES) $(S_OFILES)
+
+$(PROGRAM): $(OFILES)
+	$(LD) $(OFILES) $(LDFLAGS) -o $(PROGRAM)
+
+$(C_OFILES): %.o:
+	$(CC) $(CFLAGS) -c $<
+
+switch.o: ../threads/switch.s
+	$(CPP) -P $(INCPATH) $(HOST) ../threads/switch.c > swtch.s
+	$(AS) -o switch.o swtch.s
+
+depend: $(CFILES) $(HFILES)
+	$(CC) $(INCPATH) $(DEFINES) $(HOST) -DCHANGED -M $(CFILES) > makedep
+	echo '/^# DO NOT DELETE THIS LINE/+2,$$d' >eddep
+	echo '$$r makedep' >>eddep
+	echo 'w' >>eddep
+	ed - Makefile < eddep
+	rm eddep makedep 
+	echo '# DEPENDENCIES MUST END AT END OF FILE' >> Makefile
+	echo '# IF YOU PUT STUFF HERE IT WILL GO AWAY' >> Makefile
+	echo '# see make depend above' >> Makefile

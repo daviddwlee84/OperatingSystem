@@ -1,0 +1,59 @@
+From: cs162@po.EECS.Berkeley.EDU (Class Master)
+Subject: Answer to problems running assignment 5
+
+Some people have been having problems running assignment 5.
+Unfortunately, the way the network gets initialized, if things
+don't get done in exactly the right order, you can get an error
+in sending the first packet to the socket.
+
+I have modified synch.h and synch.cc in code/, and re-compiled
+the contents of code/network.  I was then able to run the
+test case successfully, at least one out of two times.  See below.
+So, be careful out there!
+
+tom
+-----------
+po.EECS.Berkeley.EDU:network>!19
+./nachos -m 0 -o 1 > & log & ; ./nachos -m 1 -o 0 > & log2 &
+[1] 10882
+[2] 10883
+po.EECS.Berkeley.EDU:network>
+[2]    Illegal instruction  ./nachos -m 1 -o 0 >& log2 (core dumped)
+
+[1]    Illegal instruction  ./nachos -m 0 -o 1 >& log (core dumped)
+
+po.EECS.Berkeley.EDU:network>rm -f log* SOCKET*
+po.EECS.Berkeley.EDU:network>!19
+./nachos -m 0 -o 1 > & log & ; ./nachos -m 1 -o 0 > & log2 &
+[1] 10895
+[2] 10896
+po.EECS.Berkeley.EDU:network>
+[1]    Done                 ./nachos -m 0 -o 1 >& log
+
+[2]    Done                 ./nachos -m 1 -o 0 >& log2
+more log
+Got "Hello there!" from 1, box 1
+Got "Got it!" from 1, box 1
+Machine halting!
+
+Ticks: total 57080, idle 56810, system 270, user 0
+Disk I/O: reads 2, writes 0
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 2, sent 2
+
+
+
+Cleaning up...
+po.EECS.Berkeley.EDU:network>more log2
+Got "Hello there!" from 0, box 1
+Got "Got it!" from 0, box 1
+Machine halting!
+
+Ticks: total 58530, idle 58260, system 270, user 0
+Disk I/O: reads 2, writes 0
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 2, sent 2
+
+Cleaning up...
