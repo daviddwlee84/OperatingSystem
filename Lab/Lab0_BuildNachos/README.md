@@ -25,13 +25,43 @@ Because we compile 32-bit program on 64-bit OS. We need to add some flag in the 
    * add `-m32` after `LDFLAGS =`
 3. Also add `-m32` in `code/bin/Makefile`
 
-Build (in `code/`)
+**Build** (in `code/`)
 
 ```sh
 make
 ```
 
-Test. Execute `userprog/nachos`
+This step will modify the following files automatically
+
+* `filesys/Makefile`
+* `network/Makefile`
+* `threads/Makefile`
+* `userprog/Makefile`
+* `vm/Makefile`
+* `test/halt`
+* `test/matmult`
+* `test/shell`
+* `test/sort`
+
+and generate the following files
+
+* `bin/coff2noff`
+* `test/halt.coff`
+* `test/matmult.coff`
+* `test/shell.coff`
+* `test/sort.coff`
+* `filesys/nachos`
+* `filesys/swtch.s`
+* `network/nachos`
+* `network/swtch.s`
+* `threads/nachos`
+* `threads/swtch.s`
+* `userprog/nachos`
+* `userprog/swtch.s`
+* `vm/nachos`
+* `vm/swtch.s`
+
+**Test**. Execute `userprog/nachos`
 
 ```txt
 No threads ready or runnable, and no pending interrupts.
