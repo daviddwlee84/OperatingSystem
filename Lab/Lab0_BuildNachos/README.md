@@ -2,7 +2,7 @@
 
 ## Preparation
 
-* [Development Environment](../../Notes/DevEnvironment.md)
+* [Development Environment](DevEnvironment.md)
   * 32-bit gcc, g++
 
 ## Exercise
