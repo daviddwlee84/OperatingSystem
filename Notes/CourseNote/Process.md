@@ -105,6 +105,8 @@ Example of Linux Kernel: context switching involves switching registers, stack p
 
 * [Wiki - Context switch](https://en.wikipedia.org/wiki/Context_switch)
 
+[CPU Scheduling](CPUScheduling.md#Process-Context-Switch)
+
 ## Process Queue
 
 ## Process Control and System Call
