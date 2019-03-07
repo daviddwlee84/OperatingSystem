@@ -54,6 +54,51 @@ ThreadTest1()
 }
 
 //----------------------------------------------------------------------
+// Lab1Exercise3Thread
+// 	Loop 5 times, yielding the CPU to another ready thread 
+//	each iteration.
+//
+//	"which" is simply a number identifying the thread, for debugging
+//	purposes.
+//----------------------------------------------------------------------
+
+void
+Lab1Exercise3Thread(int which)
+{
+    int num;
+    
+    for (num = 0; num < 5; num++) {
+        printf("*** thread %d (uid=%d, tid=%d) looped %d times\n", which, currentThread->getUserId(), currentThread->getThreadId(), num);
+        currentThread->Yield();
+    }
+}
+
+//----------------------------------------------------------------------
+// Lab1 Exercise3
+// 	Create multi-threads and show its uid and tid
+//----------------------------------------------------------------------
+
+void
+Lab1Exercise3()
+{
+    DEBUG('t', "Entering Lab1Exercise3");
+
+    const int max_threads = 5;
+    const int test_uid = 87;
+
+    for (int i = 0; i < max_threads; i++) {
+        // Generate a Thread object
+        Thread *t = new Thread("forked thread");
+        t->setUserId(test_uid); // set uid
+        // Define a new thread's function and its parameter
+        t->Fork(Lab1Exercise3Thread, (void*)t->getThreadId());
+    }
+
+    Lab1Exercise3Thread(0);
+}
+
+
+//----------------------------------------------------------------------
 // ThreadTest
 // 	Invoke a test routine.
 //----------------------------------------------------------------------
@@ -63,11 +108,15 @@ ThreadTest()
 {
     switch (testnum) {
     case 1:
-	ThreadTest1();
-	break;
+        ThreadTest1();
+        break;
+    case 2:
+        printf("Lab1 Exercise3:\n");
+        Lab1Exercise3();
+        break;
     default:
-	printf("No test specified.\n");
-	break;
+        printf("No test specified.\n");
+        break;
     }
 }
 

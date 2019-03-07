@@ -38,6 +38,16 @@ Thread::Thread(char* threadName)
     stackTop = NULL;
     stack = NULL;
     status = JUST_CREATED;
+
+    // Lab1: Allocate thread id for current thread
+    for (int i = 0; i < MAX_THREAD_NUM; i++) { // sequential search
+        if (!tid_flag[i]) { // if found an empty space
+            this->tid = i;
+            tid_flag[i] = TRUE;
+            break;
+        }
+    }
+
 #ifdef USER_PROGRAM
     space = NULL;
 #endif
@@ -58,6 +68,9 @@ Thread::Thread(char* threadName)
 Thread::~Thread()
 {
     DEBUG('t', "Deleting thread \"%s\"\n", name);
+
+    // Lab1: Release thread flag
+    tid_flag[this->tid] = FALSE;
 
     ASSERT(this != currentThread);
     if (stack != NULL)

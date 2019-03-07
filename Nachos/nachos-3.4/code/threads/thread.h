@@ -79,6 +79,10 @@ class Thread {
     // THEY MUST be in this position for SWITCH to work.
     int* stackTop;			 // the current stack pointer
     void *machineState[MachineStateSize];  // all registers except for stackTop
+    
+    // Lab1: Add thread ID and user ID
+    int tid;                            // Lab1: Add thread ID
+    int uid;                            // Lab1: Add user ID
 
   public:
     Thread(char* debugName);		// initialize a Thread 
@@ -101,6 +105,11 @@ class Thread {
     void setStatus(ThreadStatus st) { status = st; }
     char* getName() { return (name); }
     void Print() { printf("%s, ", name); }
+
+    // Lab1: methods to manipulate tid and uid
+    int getThreadId() { return (tid); }         // Lab1: Get thread ID
+    int getUserId() { return (uid); }           // Lab1: Get user ID
+    void setUserId(int userId) { uid = userId; }// Lab1: Set user ID
 
   private:
     // some of the private data for this class is listed above

@@ -19,6 +19,9 @@ Statistics *stats;			// performance metrics
 Timer *timer;				// the hardware timer device,
 					// for invoking context switches
 
+// Lab1: Thread manipulation variable
+bool tid_flag[MAX_THREAD_NUM]; // it's define
+
 #ifdef FILESYS_NEEDED
 FileSystem  *fileSystem;
 #endif
@@ -80,6 +83,11 @@ Initialize(int argc, char **argv)
     int argCount;
     char* debugArgs = "";
     bool randomYield = FALSE;
+
+    // Lab1: Initialize thread variable
+    for (int i = 0; i < MAX_THREAD_NUM; i++) {
+        tid_flag[i] = FALSE;
+    }
 
 #ifdef USER_PROGRAM
     bool debugUserProg = FALSE;	// single step user program
