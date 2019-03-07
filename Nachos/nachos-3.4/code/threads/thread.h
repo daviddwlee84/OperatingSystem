@@ -110,6 +110,7 @@ class Thread {
     int getThreadId() { return (tid); }         // Lab1: Get thread ID
     int getUserId() { return (uid); }           // Lab1: Get user ID
     void setUserId(int userId) { uid = userId; }// Lab1: Set user ID
+    ThreadStatus getThreadStatus() { return (status); } // Lab1: Get thread status
 
   private:
     // some of the private data for this class is listed above

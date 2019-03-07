@@ -40,6 +40,7 @@ Thread::Thread(char* threadName)
         if (!tid_flag[i]) { // if found an empty space
             this->tid = i;
             tid_flag[i] = TRUE;
+            tid_pointer[i] = this; // for TS command
             success_allocate = TRUE;
             break;
         }
@@ -50,6 +51,7 @@ Thread::Thread(char* threadName)
     ASSERT(success_allocate); // abort if unable to allocate new thread
 
     name = threadName;
+    uid = 0; // default user ID
     stackTop = NULL;
     stack = NULL;
     status = JUST_CREATED;

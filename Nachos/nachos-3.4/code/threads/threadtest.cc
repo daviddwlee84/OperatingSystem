@@ -117,6 +117,85 @@ Lab1Exercise4_1()
 }
 
 //----------------------------------------------------------------------
+// TS command
+// 	Showing current threads' status (like ps in Linux)
+//----------------------------------------------------------------------
+
+void
+TS()
+{
+    DEBUG('t', "Entering TS");
+
+    const char* TStoString[] = {"JUST_CREATED", "RUNNING", "READY", "BLOCKED"};
+
+    printf("UID\tTID\tNAME\tSTATUS\n");
+    for (int i = 0; i < MAX_THREAD_NUM; i++) { // check pid flag
+        if (tid_flag[i]) {
+            printf("%d\t%d\t%s\t%s\n", tid_pointer[i]->getUserId(), tid_pointer[i]->getThreadId(), tid_pointer[i]->getName(), TStoString[tid_pointer[i]->getThreadStatus()]);
+        }
+    }
+}
+
+//----------------------------------------------------------------------
+// CustomThreadFunc
+//
+//	"which" is simply a number identifying the operation to do on current thread
+//----------------------------------------------------------------------
+
+void
+CustomThreadFunc(int which)
+{
+    printf("*** current thread (uid=%d, tid=%d, name=%s) => ", currentThread->getUserId(), currentThread->getThreadId(), currentThread->getName());
+    switch (which)
+    {
+        case 0:
+            printf("Yield\n");
+            currentThread->Yield();
+            break;
+        case 1:
+            printf("Sleep\n");
+            currentThread->Sleep();
+            break;
+        case 2:
+            printf("Finish\n");
+            currentThread->Finish();
+            break;
+        default:
+            printf("Yield (default)\n");
+            currentThread->Yield();
+            break;
+    }
+}
+
+//----------------------------------------------------------------------
+// Lab1 Exercise4-2
+// 	Create some threads and use TS to show the status
+//----------------------------------------------------------------------
+
+void
+Lab1Exercise4_2()
+{
+    DEBUG('t', "Entering Lab1Exercise4_2");
+
+    Thread *t1 = new Thread("fork 1");
+    Thread *t2 = new Thread("fork 2");
+    Thread *t3 = new Thread("fork 3");
+
+    t1->Fork(CustomThreadFunc, (void*)0);
+    // t2->Fork(CustomThreadFunc, (void*)1);
+    t3->Fork(CustomThreadFunc, (void*)2);
+
+    Thread *t4 = new Thread("fork 4");
+    t4->Fork(CustomThreadFunc, (void*)0);
+
+    CustomThreadFunc(0); // Yield the current thread (i.e. main which is defined in system.cc)
+
+    printf("--- Calling TS command ---\n");
+    TS();
+    printf("--- End of TS command ---\n");
+}
+
+//----------------------------------------------------------------------
 // ThreadTest
 // 	Invoke a test routine.
 //----------------------------------------------------------------------
@@ -135,6 +214,10 @@ ThreadTest()
     case 3:
         printf("Lab1 Exercise4-1:\n");
         Lab1Exercise4_1();
+        break;
+    case 4:
+        printf("Lab1 Exercise4-2:\n");
+        Lab1Exercise4_2();
         break;
     default:
         printf("No test specified.\n");

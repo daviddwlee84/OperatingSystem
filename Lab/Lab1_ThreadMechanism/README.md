@@ -181,7 +181,7 @@ Lab1 Exercise3:
 ## Exercise 4: Add global Thread management mechanism
 
 > 1. Make Nachos able to handle maximum 128 threads at the same time.
-> 2. Imitate Linux *ps* command. Add a *ts* (Threads Status) command which is able to show all the threads' information and status.
+> 2. Imitate Linux *ps* (Process Status) command. Add a *ts* (Threads Status) command which is able to show all the threads' information and status.
 
 ### 4-1 Maximum threads limit
 
@@ -252,6 +252,121 @@ Lab1 Exercise4-1:
 *** thread name forked thread (tid=127)
 Reach maximum threads number 128, unable to allocate!!
 Assertion failed: line 50, file "../threads/thread.cc"
+```
+
+### 4-2 ps-like ts command
+
+Some clue
+
+* *Ready queue* is defined in `threads/scheduler.cc` as a private List variable `List *readyList`
+
+1. Add `tid_pointer` array with `Thread*` type to record all the threads' pointer in `threads/system.h` and `threads/system.c`. It's similar with `tid_flag` in Exercise 3.
+2. Add `getThreadStatus()` public method in `threads/thread.h`. It's similar with step 1 in Exercise 3.
+3. The TS Function
+
+    ```cpp
+    //----------------------------------------------------------------------
+    // TS command
+    // 	Showing current threads' status (like ps in Linux)
+    //----------------------------------------------------------------------
+
+    void
+    TS()
+    {
+        DEBUG('t', "Entering TS");
+
+        const char* TStoString[] = {"JUST_CREATED", "RUNNING", "READY", "BLOCKED"};
+
+        printf("UID\tTID\tNAME\tSTATUS\n");
+        for (int i = 0; i < MAX_THREAD_NUM; i++) { // check pid flag
+            if (tid_flag[i]) {
+                printf("%d\t%d\t%s\t%s\n", tid_pointer[i]->getUserId(), tid_pointer[i]->getThreadId(), tid_pointer[i]->getName(), TStoString[tid_pointer[i]->getThreadStatus()]);
+            }
+        }
+    }
+    ```
+
+**Testing time**:
+
+Add the following funciton in `threads/threadtest.cc` and don't forget to add `Lab1Exercise4_2()` into `ThreadTest()` (as case 4)
+
+```cpp
+//----------------------------------------------------------------------
+// CustomThreadFunc
+//
+//	"which" is simply a number identifying the operation to do on current thread
+//----------------------------------------------------------------------
+
+void
+CustomThreadFunc(int which)
+{
+    printf("*** current thread (uid=%d, tid=%d, name=%s) => ", currentThread->getUserId(), currentThread->getThreadId(), currentThread->getName());
+    switch (which)
+    {
+        case 0:
+            printf("Yield\n");
+            currentThread->Yield();
+            break;
+        case 1:
+            printf("Sleep\n");
+            currentThread->Sleep();
+            break;
+        case 2:
+            printf("Finish\n");
+            currentThread->Finish();
+            break;
+        default:
+            printf("Yield (default)\n");
+            currentThread->Yield();
+            break;
+    }
+}
+```
+
+```cpp
+//----------------------------------------------------------------------
+// Lab1 Exercise4-2
+// 	Create some threads and use TS to show the status
+//----------------------------------------------------------------------
+
+void
+Lab1Exercise4_2()
+{
+    DEBUG('t', "Entering Lab1Exercise4_2");
+
+    Thread *t1 = new Thread("fork 1");
+    Thread *t2 = new Thread("fork 2");
+    Thread *t3 = new Thread("fork 3");
+
+    t1->Fork(CustomThreadFunc, (void*)0);
+    // t2->Fork(CustomThreadFunc, (void*)1);
+    t3->Fork(CustomThreadFunc, (void*)2);
+
+    Thread *t4 = new Thread("fork 4");
+    t4->Fork(CustomThreadFunc, (void*)0);
+
+    CustomThreadFunc(0); // Yield the current thread (i.e. main which is defined in system.cc)
+
+    printf("--- Calling TS command ---\n");
+    TS();
+    printf("--- End of TS command ---\n");
+}
+```
+
+```sh
+$ threads/nachos -q 4
+Lab1 Exercise4-2:
+*** current thread (uid=0, tid=0, name=main) => Yield
+*** current thread (uid=0, tid=1, name=fork 1) => Yield
+*** current thread (uid=0, tid=3, name=fork 3) => Finish
+*** current thread (uid=0, tid=4, name=fork 4) => Yield
+--- Calling TS command ---
+UID     TID     NAME    STATUS
+0       0       main    RUNNING
+0       1       fork 1  READY
+0       2       fork 2  JUST_CREATED
+0       4       fork 4  READY
+--- End of TS command ---
 ```
 
 ## Trouble Shooting

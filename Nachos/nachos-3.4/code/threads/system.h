@@ -32,6 +32,7 @@ extern Timer *timer;				// the hardware alarm clock
 // Lab1: Thread manipulation variable
 #define MAX_THREAD_NUM 128
 extern bool tid_flag[MAX_THREAD_NUM]; // it's only "declare" and need to define in *.cc
+extern Thread* tid_pointer[MAX_THREAD_NUM];
 
 #ifdef USER_PROGRAM
 #include "machine.h"

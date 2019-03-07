@@ -21,6 +21,7 @@ Timer *timer;				// the hardware timer device,
 
 // Lab1: Thread manipulation variable
 bool tid_flag[MAX_THREAD_NUM]; // it's define
+Thread* tid_pointer[MAX_THREAD_NUM];
 
 #ifdef FILESYS_NEEDED
 FileSystem  *fileSystem;
@@ -87,6 +88,7 @@ Initialize(int argc, char **argv)
     // Lab1: Initialize thread variable
     for (int i = 0; i < MAX_THREAD_NUM; i++) {
         tid_flag[i] = FALSE;
+        tid_pointer[i] = NULL;
     }
 
 #ifdef USER_PROGRAM
