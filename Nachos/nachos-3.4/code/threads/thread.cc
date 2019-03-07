@@ -34,19 +34,25 @@
 
 Thread::Thread(char* threadName)
 {
-    name = threadName;
-    stackTop = NULL;
-    stack = NULL;
-    status = JUST_CREATED;
-
     // Lab1: Allocate thread id for current thread
+    bool success_allocate = FALSE;
     for (int i = 0; i < MAX_THREAD_NUM; i++) { // sequential search
         if (!tid_flag[i]) { // if found an empty space
             this->tid = i;
             tid_flag[i] = TRUE;
+            success_allocate = TRUE;
             break;
         }
     }
+    if (!success_allocate) {
+        printf("Reach maximum threads number %d, unable to allocate!!", MAX_THREAD_NUM);
+    }
+    ASSERT(success_allocate); // abort if unable to allocate new thread
+
+    name = threadName;
+    stackTop = NULL;
+    stack = NULL;
+    status = JUST_CREATED;
 
 #ifdef USER_PROGRAM
     space = NULL;

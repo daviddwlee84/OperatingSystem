@@ -44,6 +44,8 @@
     ```
 
     > This variable is used to check which ID is taken up by a thread.
+    >
+    > the MAX_THREAD_NUM is according to Exercise 4
 
 3. Initialize it in function `void Initialize()` in file `threads/system.cc`
 
@@ -178,8 +180,79 @@ Lab1 Exercise3:
 
 ## Exercise 4: Add global Thread management mechanism
 
-> 1. Make Nachos can handle maximum 128 threads at the same time.
+> 1. Make Nachos able to handle maximum 128 threads at the same time.
 > 2. Imitate Linux *ps* command. Add a *ts* (Threads Status) command which is able to show all the threads' information and status.
+
+### 4-1 Maximum threads limit
+
+Change `Thread::Thread` in file `threads/threads.cc` into this
+
+```cpp
+Thread::Thread(char* threadName)
+{
+    // Lab1: Allocate thread id for current thread
+    bool success_allocate = FALSE;
+    for (int i = 0; i < MAX_THREAD_NUM; i++) { // sequential search
+        if (!tid_flag[i]) { // if found an empty space
+            this->tid = i;
+            tid_flag[i] = TRUE;
+            success_allocate = TRUE;
+            break;
+        }
+    }
+    if (!success_allocate) {
+        printf("Reach maximum threads number %d, unable to allocate!!", MAX_THREAD_NUM);
+    }
+    ASSERT(success_allocate); // abort if unable to allocate new thread
+
+    name = threadName;
+    stackTop = NULL;
+    stack = NULL;
+    status = JUST_CREATED;
+```
+
+**Testing time**:
+
+Add the following funciton in `threads/threadtest.cc` and don't forget to add `Lab1Exercise4_1()` into `ThreadTest()` (as case 3)
+
+```cpp
+//----------------------------------------------------------------------
+// Lab1 Exercise4-1
+// 	Create many threads until reach the maximum MAX_THREAD_NUM
+//----------------------------------------------------------------------
+
+void
+Lab1Exercise4_1()
+{
+    DEBUG('t', "Entering Lab1Exercise4_1");
+
+    const int max_threads = 130;
+
+    for (int i = 0; i < max_threads; i++) {
+        // Generate a Thread object
+        Thread *t = new Thread("forked thread");
+        printf("*** thread name %s (tid=%d)\n", t->getName(), t->getThreadId());
+    }
+}
+```
+
+```sh
+$ threads/nachos -q 3
+Lab1 Exercise4-1:
+*** thread name forked thread (tid=1)
+*** thread name forked thread (tid=2)
+*** thread name forked thread (tid=3)
+*** thread name forked thread (tid=4)
+
+...
+
+*** thread name forked thread (tid=124)
+*** thread name forked thread (tid=125)
+*** thread name forked thread (tid=126)
+*** thread name forked thread (tid=127)
+Reach maximum threads number 128, unable to allocate!!
+Assertion failed: line 50, file "../threads/thread.cc"
+```
 
 ## Trouble Shooting
 

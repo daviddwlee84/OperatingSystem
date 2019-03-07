@@ -97,6 +97,24 @@ Lab1Exercise3()
     Lab1Exercise3Thread(0);
 }
 
+//----------------------------------------------------------------------
+// Lab1 Exercise4-1
+// 	Create many threads until reach the maximum MAX_THREAD_NUM
+//----------------------------------------------------------------------
+
+void
+Lab1Exercise4_1()
+{
+    DEBUG('t', "Entering Lab1Exercise4_1");
+
+    const int max_threads = 130;
+
+    for (int i = 0; i < max_threads; i++) {
+        // Generate a Thread object
+        Thread *t = new Thread("forked thread");
+        printf("*** thread name %s (tid=%d)\n", t->getName(), t->getThreadId());
+    }
+}
 
 //----------------------------------------------------------------------
 // ThreadTest
@@ -113,6 +131,10 @@ ThreadTest()
     case 2:
         printf("Lab1 Exercise3:\n");
         Lab1Exercise3();
+        break;
+    case 3:
+        printf("Lab1 Exercise4-1:\n");
+        Lab1Exercise4_1();
         break;
     default:
         printf("No test specified.\n");
