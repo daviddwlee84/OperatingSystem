@@ -2,7 +2,7 @@
 
 ## Requirement
 
-### Code to read
+Code to read
 
 * Basic headers
   * [X] `types.h` (p.1)
@@ -14,11 +14,15 @@
   * [X] `mmu.h` (p.7)
   * [X] `elf.h` (p.9)
 * Processes
-  * [ ] `vm.c` (p.17)
+  * [X] `vm.c` (p.17)
   * [ ] `proc.h` (p.23)
   * [ ] `proc.c` (p.24)
   * [ ] `swtch.S` (p.30)
   * [ ] `kalloc.c` (p.31)
+
+## Tracing Code
+
+### Basic headers
 
 #### types.h
 
@@ -98,3 +102,27 @@
 #### elf.h
 
 > Format of an ELF executable file
+
+### Processes
+
+#### vm.c - Virtual Memory
+
+* some abbreviation
+  * va: virtual address
+  * pa: physical address
+
+## Related Notes
+
+### Page Table
+
+![wiki page table](https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Virtual_address_space_and_physical_address_space_relationship.svg/470px-Virtual_address_space_and_physical_address_space_relationship.svg.png)
+
+* [Wiki - Page table](https://en.wikipedia.org/wiki/Page_table)
+
+#### PTE Page Table Entry
+
+#### MMU Memory Management Unit
+
+#### TLB Translation Lookaside Buffer
+
+![wiki page table action](https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Page_table_actions.svg/625px-Page_table_actions.svg.png)
