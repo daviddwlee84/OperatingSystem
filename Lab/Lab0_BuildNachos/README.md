@@ -1,9 +1,13 @@
 # Lab 0: Build Nachos
 
+> Notes: the file `Files/nachos-3.4.tar.gz` is given by PKU OS course TA.
+> May be differ from other resources. (e.g. directory structure)
+
 ## Preparation
 
-* [Development Environment](../../Notes/DevEnvironment.md)
+* [Development Environment](DevEnvironment.md)
   * 32-bit gcc, g++
+  * [**docker**](DevEnvironment.md#Use-Docker-with-32bit-image)
 
 ## Exercise
 
@@ -25,13 +29,47 @@ Because we compile 32-bit program on 64-bit OS. We need to add some flag in the 
    * add `-m32` after `LDFLAGS =`
 3. Also add `-m32` in `code/bin/Makefile`
 
-Build (in `code/`)
+> If you use 32-bit OS or container you can skip this step
+
+### Build (in `code/`)
 
 ```sh
 make
 ```
 
-Test. Execute `userprog/nachos`
+This step will modify the following files automatically
+
+* `filesys/Makefile`
+* `network/Makefile`
+* `threads/Makefile`
+* `userprog/Makefile`
+* `vm/Makefile`
+* `test/halt`
+* `test/matmult`
+* `test/shell`
+* `test/sort`
+
+and generate the following files
+
+* `bin/coff2noff`
+* `test/halt.coff`
+* `test/matmult.coff`
+* `test/shell.coff`
+* `test/sort.coff`
+* `filesys/nachos`
+* `filesys/swtch.s`
+* `network/nachos`
+* `network/swtch.s`
+* `threads/nachos`
+* `threads/swtch.s`
+* `userprog/nachos`
+* `userprog/swtch.s`
+* `vm/nachos`
+* `vm/swtch.s`
+
+### Test
+
+Execute `userprog/nachos` (or any `nachos` binary in other subdirectory)
 
 ```txt
 No threads ready or runnable, and no pending interrupts.
@@ -85,7 +123,7 @@ Cleaning up...
 
 2. Cannot find `-lstdc++`
 
-> didn't install `g++-multilib`
+    > didn't install `g++-multilib`
 
 3. `code/bin/coff2noff halt.coff halt`
 
