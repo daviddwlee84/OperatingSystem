@@ -51,7 +51,18 @@ Build the modified version in this github repository
 
 ```sh
 bash build_modified_nachos.sh
-# the outcome image will be nachos:latest
+# the outcome image will be nachos:latest and nachos:0.1 (default)
+
+# or can take the argement of version
+./build_modified_nachos.sh 0.1.1
+```
+
+Build only the specific subdirectory
+
+```sh
+# build threads for example (use any subdirectory name under nachos-3.4/code/)
+./build_subdir_nachos.sh threads
+# the outcome image will be nachos_<subdir>:latest
 ```
 
 Running example
@@ -62,10 +73,7 @@ $ docker run -it nachos:0.0.1
 
 # Interactive with mount local project
 # (Run this in the root of this repositoy)
-$ docker run -it -v Nachos:/Nachos nachos:latest
-# (not recommend because we don't want our compiled file push on the github)
-# (or we can add to .gitignore later)
-# (but if we do so, we better make a new Dockerfile just for "compiler")
+$ docker run -it -v $(pwd)/Nachos:/Nachos nachos:latest
 
 # Run a single test
 $ docker run nachos:latest nachos/nachos-3.4/code/threads/nachos
@@ -102,12 +110,15 @@ Cleaning up...
 * [docker for beginners](https://docker-curriculum.com/)
   * [github](https://github.com/prakhar1989/docker-curriculum)
 * [Docker ENTRYPOINT & CMD: Dockerfile best practices](https://medium.freecodecamp.org/docker-entrypoint-cmd-dockerfile-best-practices-abc591c30e21)
+* [Arguments and variables in Docker](https://www.manifold.co/blog/arguments-and-variables-in-docker-94746642f64b)
 * docker run
   * [Mounting a Folder in a Docker Container](https://youtu.be/MdRWkqcbLJI)
 * docker build
   * [docker docs - docker build -t](https://docs.docker.com/engine/reference/commandline/build/#tag-an-image--t)
   * [docker docs - Best practices for writing Dockerfiles](https://docs.docker.com/v17.09/engine/userguide/eng-image/dockerfile_best-practices/)
   * [docker docs - Create a base image](https://docs.docker.com/v17.09/engine/userguide/eng-image/baseimages/)
+  * docker arg
+    * [docker docs - Dockerfile reference - ARG](https://docs.docker.com/engine/reference/builder/#arg)
   * docker cache
     * [Understanding the Docker Cache for Faster Builds](https://thenewstack.io/understanding-the-docker-cache-for-faster-builds/)
   * Multi-stage builds
@@ -115,3 +126,13 @@ Cleaning up...
     * [Youtube - Drastically reduce the size of your DOCKER images with MULTISTAGE builds](https://youtu.be/KLOdisHW8rQ)
 * docker alpine
   * [The 3 Biggest Wins When Using Alpine as a Base Docker Image](https://nickjanetakis.com/blog/the-3-biggest-wins-when-using-alpine-as-a-base-docker-image)
+
+### Shell script related
+
+* default-value syntax
+  * [Default shell variables value](https://bash.cyberciti.biz/guide/Default_shell_variables_value)
+  * [How to write a bash script that takes optional input arguments?](https://stackoverflow.com/questions/9332802/how-to-write-a-bash-script-that-takes-optional-input-arguments/33419280)
+    * somecommand ${1:-foo}
+  * [Assigning default values to shell variables with a single command in bash](https://stackoverflow.com/questions/2013547/assigning-default-values-to-shell-variables-with-a-single-command-in-bash)
+  * [{var:=default} vs {var:-default} - what is difference?](https://stackoverflow.com/questions/24405606/var-default-vs-var-default-what-is-difference)
+    * Positional or special parameters cannot be assigned using := way

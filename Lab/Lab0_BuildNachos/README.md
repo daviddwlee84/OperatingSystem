@@ -149,3 +149,15 @@ Cleaning up...
     ```
 
     > It seems to be C vs. C++ problem, not sure.
+
+5. Value too large for defined data type (make using docker mount)
+   * [Stackoverflow - cc1plus: error: include: Value too large for defined data type when compiling with g++](https://stackoverflow.com/questions/2438890/cc1plus-error-include-value-too-large-for-defined-data-type-when-compiling-wi/2496749)
+   * [Command find show “Value too large for defined data type”](https://serverfault.com/questions/735636/command-find-show-value-too-large-for-defined-data-type)
+
+    > problem is appear when
+    >
+    > * docker -v local_nachos
+    > * make all in code/
+    > * (because of code/test?!)
+    >
+    > but if only make in code/threads this won't happen
