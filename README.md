@@ -1,8 +1,13 @@
 # Operating System
 
-PKU OS course project and notes
+PKU OS course project and notes based on Nachos and XV6.
+
+* Nachos - An immature OS that we can try to add wings on it.
+* XV6 - A much more functional OS that we can absorb its essence by tracing code.
 
 ## Schedule
+
+### Nachos Lab
 
 Lab  |Subject|Detail
 -----|-------|------
@@ -10,7 +15,9 @@ Lab 0|[Build Nachos](Lab/Lab0_BuildNachos)|Setup 32bit cross compile dev. env.
 Lab 1|[Thread Mechanism](Lab/Lab1_ThreadMechanism/README.md)|Multi-thread management
 Lab 2|[Thread Scheduling](Lab/Lab2_ThreadScheduling/README.md)|CPU scheduling
 
-## XV6 Source Code Reading
+> [quick start with docker](Lab/Lab0_BuildNachos/DevEnvironment.md#Use-Docker-with-32bit-image)
+
+### XV6 Source Code Reading
 
 1. [Process and Thread](Notes/XV6/XV6ProcessThread.md)
 
