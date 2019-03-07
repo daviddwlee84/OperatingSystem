@@ -1,0 +1,1576 @@
+\documentstyle[12pt,fullpage]{article}
+
+\newcommand{\putfig}[3]%
+{\begin{figure}%
+\centerline{%
+\psfig{figure=#1.ps,width=#3}}%
+\caption{#2}%
+\label{fig:#1}%
+\end{figure}}
+
+\input{psfig}
+
+\begin{document}
+
+\begin{figure*}[t]
+\begin{center}
+{\LARGE\bf A Quick Introduction to C++}
+
+\vspace{3.0ex}
+
+{\Large Tom Anderson}
+\end{center}
+\end{figure*}
+
+\renewcommand{\thefootnote}{\fnsymbol{footnote}}
+
+\footnotetext{This article is based on an earlier version written by Wayne Christopher.}
+
+\renewcommand{\thefootnote}{}
+\renewcommand{\thefootnote}{\arabic{footnote}}
+
+\begin{quote}
+``If programming in Pascal is like being put in a straightjacket,
+then programming in C is like playing with knives, and programming
+in C++ is like juggling chainsaws.'' \\ \hbox{} \hfill Anonymous.
+\end{quote}
+
+\section{Introduction}
+
+This note introduces some simple C++ concepts and outlines a
+subset of C++ that is easier to learn and use than
+the full language.  Although we originally wrote this note for
+explaining the C++ used in the Nachos project, I believe it is 
+useful to anyone learning C++.
+I assume that you are already somewhat familiar with C concepts
+like procedures, for loops, and pointers; these are pretty easy
+to pick up from reading Kernighan and Ritchie's ``The C Programming 
+Language.''
+
+I should admit up front that I am quite opinionated about C++, if
+that isn't obvious already.
+I know several C++ purists (an oxymoron perhaps?) who violently
+disagree with some of
+the prescriptions contained here; most of the objections are of
+the form, ``How could you have possibly left out feature X?''
+However, I've found from teaching C++ to nearly 1000 undergrads
+over the past several years that the subset of C++ described here is
+pretty easy to learn, taking only a day or so for most students 
+to get started.
+
+The basic premise of this note is that while object-oriented
+programming is a useful way to simplify programs, C++ is a wildly
+over-complicated
+language, with a host of features that only very, very rarely find a
+legitimate use.  It's not too far off the mark to say that C++ includes
+every programming language feature ever imagined, and more.
+The natural tendency when faced with a new language feature
+is to try to use it, but in C++ this approach leads to disaster.
+
+Thus, we need to carefully distinguish between (i) those concepts 
+that are fundamental (e.g., classes, member functions, constructors)
+-- ones that everyone should know and use, (ii) those that are sometimes 
+but rarely useful (e.g., single inheritance, templates) -- ones that
+beginner programmers should be able to recognize (in case they run across
+them) but avoid using in their own programs, at least for a while,
+and (iii) those that are just a bad idea and should be avoided like
+the plague (e.g., multiple inheritance, exceptions, overloading,
+references, etc).
+
+Of course, all the items in this last category have their proponents,
+and I will admit that, like the hated goto, it is possible to
+construct cases when the program would be simpler using a goto or
+multiple inheritance.  However, it is
+my belief that most programmers will never encounter such cases,
+and even if you do, you will be much more likely to misuse the 
+feature than properly apply it.
+For example, I seriously doubt an undergraduate would need any of 
+the features listed under (iii) for any course project (at least
+at Berkeley this is true).  And if you find yourself wanting to use 
+a feature like multiple inheritance, then, my advice is to fully 
+implement your program both with and without the feature, and choose 
+whichever is simpler.  Sure, this takes more effort, but
+pretty soon you'll know from experience when a feature is useful and when
+it isn't, and you'll be able to skip the dual implementation.
+
+A really good way to learn a language is to read clear programs in that
+language.  I have tried to make the Nachos code as readable as possible;
+it is written in the subset of C++ described in this note.
+It is a good idea to look over the first assignment as you read this
+introduction.  Of course, your TA's will answer any questions you may
+have.
+
+You should not need a book on C++ to do the Nachos assignments, but if 
+you are curious, there is a large selection of C++ books
+at Cody's and other technical bookstores. (My wife quips that C++ was
+invented to make researchers at Bell Labs rich from writing
+``How to Program in C++'' books.)   Most new software development
+these days is being done in C++, so it is a pretty good bet you'll 
+run across it in the future.  I use Stroustrup's "The C++
+Programming Language" as a reference manual, although other 
+books may be more readable.  I would also recommend Scott Meyer's
+``Effective C++'' for people just beginning to learn the language,
+and Coplien's ``Advanced C++'' once you've been programming in C++ 
+for a couple years and are familiar with the language basics.
+Also, C++ is continually evolving, so be careful to buy books that describe
+the latest version (currently 3.0, I think!).
+
+\section{C in C++}
+
+To a large extent, C++ is a superset of C, and most carefully written
+ANSI C will compile as C++.  There are a few major caveats though:
+
+\begin{enumerate}
+
+\item All functions must be declared before they are used, rather than
+defaulting to type {\tt int}.
+
+\item All function declarations and definition headers must use
+new-style declarations, e.g.,
+
+\begin{verbatim}
+extern int foo(int a, char* b);
+\end{verbatim}
+
+The form {\tt extern int foo();} means that {\tt foo} takes {\it no}
+arguments, rather than arguments of an unspecified type and number.
+In fact, some advise using a C++ compiler even
+on normal C code, because it will catch errors like misused functions that
+a normal C compiler will let slide.
+
+\item If you need to link C object files together with C++, when you
+declare the C functions for the C++ files, they must be done like this:
+
+\begin{verbatim}
+extern "C" int foo(int a, char* b);
+\end{verbatim}
+
+Otherwise the C++ compiler will alter the name in a strange manner.
+
+\item There are a number of new keywords, which you may not use as
+identifiers --- some common ones are {\tt new}, {\tt delete}, {\tt
+const}, and {\tt class}.
+
+\end{enumerate}
+
+\section{Basic Concepts}
+
+Before giving examples of C++ features, I will first go over some of
+the basic concepts of object-oriented languages.  If this discussion
+at first seems a bit obscure, it will become clearer when we get
+to some examples.
+
+\begin{enumerate}
+
+\item {\bf Classes and objects}.  A class is similar to a C {\em structure},
+except that the definition of the data structure, {\em and} all of the 
+functions that operate on the data structure are grouped together
+in one place.  An {\em object} is an instance of a class (an instance
+of the data structure); objects share the same functions with other objects
+of the same class, but each object (each instance) has its own copy of 
+the data structure.  A class thus defines two aspects of the objects: 
+the {\em data} they contain, and the {\em behavior} they have.
+
+\item {\bf Member functions}.  These are functions which are
+considered part of the object and are declared in the class
+definition.  They are often referred to as {\em methods} of the class.
+In addition to member functions, a class's behavior is also defined
+by:
+\begin{enumerate}
+\item What to do when you create a new object (the {\bf constructor}
+for that object) -- in other words, initialize the object's data.
+\item What to do when you delete an object (the {\bf destructor} for
+that object).
+\end{enumerate}
+
+\item {\bf Private vs. public members}.  A public member of a class is
+one that can be read or written by anybody, in the case of a data
+member, or called by anybody, in the case of a member function.  A
+private member can only be read, written, or called by a member
+function of that class.
+\end{enumerate}
+
+Classes are used for two main reasons: (1) it makes it much easier to
+organize your programs if you can group together data with the
+functions that manipulate that data, and (2) the use of private
+members makes it possible to do {\em information hiding}, so that you
+can be more confident about the way information flows in your
+programs.
+
+\subsection{Classes}
+
+C++ classes are similar to C structures in many ways.  In fact, a C++
+struct is really a class that has only public data members.
+In the following explanation of how classes work, we will use a stack
+class as an example.
+
+\begin{enumerate}
+\item {\bf Member functions.}   Here is a (partial) example of a class
+with a member function and some data members:
+\begin{verbatim}
+class Stack {
+  public:
+    void Push(int value); // Push an integer, checking for overflow.
+    int top;          // Index of the top of the stack.
+    int stack[10];    // The elements of the stack.
+};
+
+void
+Stack::Push(int value) {
+    ASSERT(top < 10);		// stack should never overflow
+    stack[top++] = value;
+}
+\end{verbatim}
+
+This class has two data members, {\tt top} and {\tt stack}, and one
+member function, {\tt Push}.  
+The notation {\em class}::{\em function} denotes the
+{\em function} member of the class {\em class}.  (In the style we use,
+most function names are capitalized.)  The function is defined beneath
+it.  
+
+As an aside, note that we use a call to {\tt ASSERT} to check that 
+the stack hasn't overflowed; ASSERT drops into the debugger if the condition
+is false.  It is an extremely good idea for you to use ASSERT
+statements liberally throughout your code to document assumptions
+made by your implementation.  Better to catch errors automatically
+via ASSERTs than to let them go by and have your program overwrite 
+random locations.  
+
+In actual usage, the definition of {\tt class Stack} would typically
+go in the file {\tt stack.h} and the definitions of the member
+functions, like {\tt Stack::Push}, would go in the file {\tt
+stack.cc}.
+
+If we have a pointer to a {\tt Stack} object called {\tt s}, we can
+access the {\tt top} element as {\tt s->top}, just as in C.  However,
+in C++ we can also call the member function using the following syntax:
+
+\begin{verbatim}
+    s->Push(17);
+\end{verbatim}
+
+Of course, as in C, {\tt s} must point to a valid {\tt Stack} object.
+
+Inside a member function, one may refer to the members of the class
+by their names alone.  In other words, the class definition
+creates a scope that includes the member (function and data) definitions.
+
+Note that if you are inside a member function, you can get a pointer
+to the object you were called on by using the variable {\tt this}.
+If you want to call another member function on the same object, you
+do not need to use the {\tt this} pointer, however.  Let's extend the Stack
+example to illustrate this by adding a {\tt Full()} function.
+
+\begin{verbatim}
+class Stack {
+  public:
+    void Push(int value); // Push an integer, checking for overflow.
+    bool Full();       // Returns TRUE if the stack is full, FALSE otherwise.
+    int top;          // Index of the lowest unused position.
+    int stack[10];    // A pointer to an array that holds the contents.
+};
+\end{verbatim}
+\newpage
+\begin{verbatim}
+bool
+Stack::Full() {
+    return (top == 10);
+}
+\end{verbatim}
+
+Now we can rewrite {\tt Push} this way:
+
+\begin{verbatim}
+void
+Stack::Push(int value) {
+    ASSERT(!Full());
+    stack[top++] = value;
+}
+\end{verbatim}
+
+We could have also written the ASSERT:
+
+\begin{verbatim}
+    ASSERT(!(this->Full());
+\end{verbatim}
+
+but in a member function, the \verb+this->+ is implicit.
+
+The purpose of member functions is to encapsulate the functionality of
+a type of object along with the data that the object contains.  A
+member function does not take up space in an object of the class.
+
+\item {\bf Private members.}  One can declare some
+members of a class to be {\it private}, which are hidden to all but
+the member functions of that class, and some to be {\it public}, which
+are visible and accessible to everybody.  Both data and function members
+can be either public or private.
+
+In our stack example, note that once we have the {\tt Full()}
+function, we really don't need to look at the {\tt top} or {\tt stack}
+members outside of the class -- in fact, we'd rather that users of the Stack
+abstraction {\em not} know about its internal implementation, in case
+we change it.  Thus we can rewrite the class as follows:
+
+\begin{verbatim}
+class Stack {
+  public:
+    void Push(int value); // Push an integer, checking for overflow.
+    bool Full();       // Returns TRUE if the stack is full, FALSE otherwise.
+  private:
+    int top;          // Index of the top of the stack.
+    int stack[10];    // The elements of the stack.
+};
+\end{verbatim}
+
+Before, given a pointer to a {\tt Stack} object, say {\tt s}, any part
+of the program could access {\tt s->top}, in potentially bad ways.
+Now, since the {\tt top} member is private, only a member function,
+such as {\tt Full()}, can access it.  If any other part of the
+program attempts to use {\tt s->top} the compiler will report an error.
+
+You can have alternating {\tt public:} and {\tt private:} sections in
+a class.  Before you specify either of these, class members are
+private, thus the above example could have been written:
+
+\begin{verbatim}
+class Stack {
+    int top;          // Index of the top of the stack.
+    int stack[10];    // The elements of the stack.
+  public:
+    void Push(int value); // Push an integer, checking for overflow.
+    bool Full();       // Returns TRUE if the stack is full, FALSE otherwise.
+};
+\end{verbatim}
+
+Which form you prefer is a matter of style, but it's usually best
+to be explicit, so that it is obvious what is intended.  In Nachos,
+we make everything explicit.
+
+What is not a matter of style: {\bf all data members of a class 
+should be private.}  All operations on data should be via that
+class' member functions.  Keeping data private adds to the modularity 
+of the system, since you can redefine how the data members are stored 
+without changing how you access them.
+
+\item {\bf Constructors and the operator new.}  In C, in
+order to create a new object of type {\tt Stack}, one might write:
+
+\begin{verbatim}
+    struct Stack *s = (struct Stack *) malloc(sizeof (struct Stack));
+    InitStack(s, 17);
+\end{verbatim}
+
+The {\tt InitStack()} function might take the second argument as the
+size of the stack to create, and use {\tt malloc()} again to get an
+array of 17 integers.
+
+The way this is done in C++ is as follows:
+
+\begin{verbatim}
+    Stack *s = new Stack(17);
+\end{verbatim}
+
+The {\tt new} function takes the place of {\tt malloc()}.  To
+specify how the object should be initialized, one declares a {\it
+constructor} function as a member of the class, with the name of the
+function being the same as the class name:
+
+\begin{verbatim}
+class Stack {
+  public:
+    Stack(int sz);    // Constructor:  initialize variables, allocate space.
+    void Push(int value); // Push an integer, checking for overflow.
+    bool Full();       // Returns TRUE if the stack is full, FALSE otherwise.
+  private:
+    int size;         // The maximum capacity of the stack.
+    int top;          // Index of the lowest unused position.
+    int* stack;       // A pointer to an array that holds the contents.
+};
+
+Stack::Stack(int sz) {
+    size = sz;
+    top = 0;
+    stack = new int[size];   // Let's get an array of integers.
+}
+\end{verbatim}
+
+There are a few things going on here, so we will describe them one at
+a time.
+
+The {\tt new} operator automatically creates (i.e. allocates) the object
+and then calls the constructor function for the new object.
+This same sequence happens even if, for instance, you declare an object
+as an automatic variable inside a function or block -- the compiler allocates
+space for the object on the stack, and calls the constructor function on it.
+
+In this example, we create two stacks of different sizes, one
+by declaring it as an automatic variable, and one by using {\tt new}.
+
+\begin{verbatim}
+void
+test() {
+    Stack s1(17);
+    Stack* s2 = new Stack(23);
+}
+\end{verbatim}
+
+Note there are two ways of providing arguments to constructors: with
+{\tt new}, you put the argument list after the class name, and with
+automatic or global variables, you put them after the variable name.
+
+It is crucial that you {\bf always} define a constructor
+for every class you define, and that the constructor initialize
+{\bf every} data member of the class.  If you don't define 
+your own constructor, the compiler will automatically define
+one for you, and believe me, it won't do what you want
+(``the unhelpful compiler'').
+The data members will be initialized to random, unrepeatable
+values, and while your program may work anyway, it might not
+the next time you recompile (or vice versa!).
+
+As with normal C variables, variables declared inside a function
+are deallocated automatically when the function returns; for  
+example, the {\tt s1} object is deallocated when {\tt test}
+returns.  Data allocated with {\tt new} (such as {\tt s2}) is 
+stored on the heap, however, and remains after the function returns;
+heap data must be explicitly disposed of using {\tt delete}, described below.  
+
+The {\tt new} operator can also be used to allocate arrays, illustrated
+above in allocating an array of {\tt ints}, of dimension {\tt size}:
+
+\begin{verbatim}
+    stack = new int[size];
+\end{verbatim}
+
+Note that you can use {\tt new} and {\tt delete} (described below)
+with built-in types like {\tt int} and {\tt char} as well as with
+class objects like {\tt Stack}.
+
+\item {\bf Destructors and the operator delete.}  Just as {\tt new} is the
+replacement for {\tt malloc()}, the replacement for {\tt free()} is
+{\tt delete}.  To get rid of the {\tt Stack} object we allocated
+above with {\tt new}, one can do:
+
+\begin{verbatim}
+    delete s2;
+\end{verbatim}
+
+This will deallocate the object, but first it will call the
+{\it destructor} for the {\tt Stack} class, if there is one.  This
+destructor is a member function of {\tt Stack} called {\tt {\verb^~^}Stack()}:
+
+\begin{verbatim}
+class Stack {
+  public:
+    Stack(int sz);    // Constructor:  initialize variables, allocate space.
+    ~Stack();         // Destructor:   deallocate space allocated above.
+    void Push(int value); // Push an integer, checking for overflow.
+    bool Full();      // Returns TRUE if the stack is full, FALSE otherwise.
+  private:
+    int size;         // The maximum capacity of the stack.
+    int top;          // Index of the lowest unused position.
+    int* stack;       // A pointer to an array that holds the contents.
+};
+
+Stack::~Stack() {
+    delete [] stack;  // delete an array of integers
+}
+\end{verbatim}
+
+The destructor has the job of deallocating the data the constructor
+allocated.  Many classes won't need destructors, and some will use
+them to close files and otherwise clean up after themselves.
+
+The destructor for an object is called when the object is deallocated.
+If the object was created with {\tt new}, then you must call
+{\tt delete} on the object, or else the object will continue
+to occupy space until the program is over -- this is called
+``a memory leak.''  Memory leaks are bad things -- although virtual
+memory is supposed to be unlimited, you can in fact run out of it --
+and so you should be careful to {\bf always} delete what you allocate.
+Of course, it is even worse to call {\tt delete} too early --
+{\tt delete} calls the destructor and puts the space back on the heap 
+for later re-use.  If you are still using the object, you will
+get random and non-repeatable results that will be very difficult
+to debug.  In my experience, using data that has already been deleted 
+is major source of hard-to-locate bugs in student (and professional)
+programs, so hey, be careful out there!
+
+If the object is an automatic, allocated on the execution stack
+of a function, the destructor will be called and the space deallocated when
+the function returns; in the {\tt test()} example above, {\tt s1}
+will be deallocated when {\tt test()} returns, without you having to
+do anything.
+
+In Nachos, we always explicitly allocate and deallocate objects with 
+{\tt new} and {\tt delete}, to make it clear when the constructor and
+destructor is being called.  For example, if an object contains another 
+object as a member variable, we use
+{\tt new} to explicitly allocated and initialize the member variable,
+instead of implicitly allocating it as part of the containing object.
+C++ has strange, non-intuitive rules for the order in which the 
+constructors and destructors are called when you implicitly allocate 
+and deallocate objects.  In practice, although simpler, explicit allocation 
+is slightly slower and it makes it more likely that you will forget 
+to deallocate an object (a bad thing!), and so some would disagree with 
+this approach.
+
+When you deallocate an array, you have to tell the compiler that
+you are deallocating an array, as opposed to a single element in the array.
+Hence to delete the array of integers in {\tt Stack::{\verb^~^}Stack}:
+
+\begin{verbatim}
+    delete [] stack;
+\end{verbatim}
+
+\end{enumerate}
+
+\subsection{Other Basic C++ Features}
+
+Here are a few other C++ features that are useful to know.
+
+\begin{enumerate}
+
+\item When you define a {\tt class Stack}, the name {\tt Stack} becomes
+usable as a type name as if created with {\tt typedef}.  The same is
+true for {\tt enum}s.
+
+\item You can define functions inside of a {\tt class} definition,
+whereupon they become {\it inline functions}, which are expanded in
+the body of the function where they are used.  The rule of thumb to
+follow is to only consider inlining one-line functions, and even then 
+do so rarely.  
+
+As an example, we could make the {\tt Full} routine an inline.
+
+\begin{verbatim}
+class Stack {
+   ...
+   bool Full() { return (top == size); };
+   ...
+};
+\end{verbatim}
+
+There are two motivations for inlines: convenience
+and performance.  If overused, inlines can make your code more confusing,
+because the implementation for an object is no longer in one place, 
+but spread between the {\tt .h} and {\tt .c} files.  Inlines can sometimes
+speed up your code (by avoiding the overhead of a procedure call), but 
+that shouldn't be your principal concern as a student (rather, at least to 
+begin with, you should be most concerned with writing code that is simple 
+and bug free).  Not to mention that inlining sometimes slows down a program,
+since the object code for the function is duplicated wherever the function 
+is called, potentially hurting cache performance.
+
+\item Inside a function body, you can declare some variables, execute
+some statements, and then declare more variables.  This can make code
+a lot more readable.  In fact, you can even write things like:
+
+\begin{verbatim}
+for (int i = 0; i < 10; i++) ;
+\end{verbatim}
+
+Depending on your compiler, however, the variable {\tt i} may still visible
+after the end of the {\tt for}
+loop, however, which is not what one might expect or desire.
+
+\item Comments can begin with the characters \verb+//+ and extend to
+the end of the line.  These are usually more handy than the
+\verb+/* */+ style of comments.
+
+\item C++ provides some new opportunities to use the 
+{\tt const} keyword from ANSI C.  The basic idea of {\tt const}
+is to provide extra information to the compiler about how a variable
+or function is used, to allow it to flag an error if it is being 
+used improperly.  You should always look for ways to get the compiler 
+to catch bugs for you.  After all, which takes less time?  Fixing
+a compiler-flagged error, or chasing down the same bug using gdb?  
+
+For example, you can declare that a member function only reads the 
+member data, and never modifies the object:
+
+\begin{verbatim}
+class Stack {
+   ...
+   bool Full() const;  // Full() never modifies member data
+   ...
+};
+\end{verbatim}
+
+As in C, you can use {\tt const} to declare that a variable is never 
+modified:
+
+\begin{verbatim}
+    const int InitialHashTableSize = 8;
+\end{verbatim}
+
+This is {\em much} better than using {\tt \#define} for constants,
+since the above is type-checked.
+
+\item Input/output in C++ can be done with the {\tt >>} and {\tt <<}
+operators and the objects {\tt cin} and {\tt cout}.  For example,
+to write to {\tt stdout}:
+
+\begin{verbatim}
+    cout << "Hello world!  This is section " << 3 << "!";
+\end{verbatim}
+
+This is equivalent to the normal C code
+
+\begin{verbatim}
+    fprintf(stdout, "Hello world!  This is section %d!\n", 3);
+\end{verbatim}
+
+except that the C++ version is type-safe; with {\tt printf}, the
+compiler won't complain if you try to print a floating point number
+as an integer. In fact, you can use traditional {\tt printf} in a C++
+program, but you will get bizarre behavior if you try to use both
+{\tt printf} and {\tt <<} on the same stream.  Reading from {\tt stdin}
+works the same way as writing to {\tt stdout}, except using the shift 
+right operator instead of shift left.  
+In order to read two integers from {\tt stdin}:
+
+\begin{verbatim}
+    int field1, field2;
+    cin >> field1 >> field2;
+        // equivalent to fscanf(stdin, "%d %d", &field1, &field2);
+        // note that field1 and field2 are implicitly modified
+\end{verbatim}
+
+In fact, {\tt cin} and {\tt cout} are implemented as normal C++
+objects, using operator overloading and reference parameters, but
+(fortunately!) you don't need to understand either of those to be able
+to do I/O in C++.
+\end{enumerate}
+
+\section{Advanced Concepts in C++: Dangerous but Occasionally Useful}
+
+There are a few C++ features, namely (single) inheritance and templates,
+which are easily abused, but can dramatically simplify an
+implementation if used properly.  I describe the basic idea
+behind these ``dangerous but useful'' features here, in case you 
+run across them.  Feel free to skip this section -- it's long,
+complex, and you can understand 99\% of the code in Nachos without
+reading this section.
+
+Up to this point, there really hasn't been any fundamental difference
+between programming in C and in C++.  In fact, most experienced 
+C programmers organize their functions into modules that relate
+to a single data structure (a "class"), and often even use a naming 
+convention which mimics C++, for example, naming routines 
+{\tt StackFull()} and {\tt StackPush()}.  However, the features 
+I'm about to describe {\em do} require a paradigm shift -- there
+is no simple translation from them into a normal C program.
+The benefit will be that, in some circumstances, you will be able to 
+write generic code that works with multiple kinds of objects.
+
+Nevertheless, I would advise a beginning C++ programmer against trying
+to use these features, because you will almost
+certainly misuse them.  It's possible (even easy!) to write completely 
+inscrutable code using inheritance and/or templates.  Although
+you might find it amusing to write code that is impossible for your 
+graders to understand, I assure you they won't find it amusing at all,
+and will return the favor when they assign grades.  In industry,
+a high premium is placed on keeping code simple and readable. 
+It's easy to write new code, but the real cost comes when
+you try to keep it working, even as you add new features to it.
+
+Nachos contains a few examples of the correct use of inheritance 
+and templates, but realize that Nachos does {\em not} use them
+everywhere.  In fact, if you get confused by this section, don't worry,
+you don't need to use any of these features in order to do the Nachos
+assignments.  I omit a whole bunch of details; if you find yourself
+making widespread use of inheritance or templates, you should consult a C++
+reference manual for the real scoop.  This is meant to
+be just enough to get you started, and to help you identify when it would
+be appropriate to use these features and thus learn more
+about them!
+
+\subsection{Inheritance}
+Inheritance captures the idea that certain classes of objects are
+related to each other in useful ways.  For example, lists
+and sorted lists have quite similar behavior -- they both 
+allow the user to insert, delete, and find elements that are
+on the list.  There are two benefits to using inheritance:
+
+\begin{enumerate}
+
+\item You can write generic code that doesn't
+care exactly which kind of object it is manipulating.  For
+example, inheritance is widely used in windowing systems.
+Everything on the screen (windows, scroll bars, titles, icons)
+is its own object, but they all share a set of member functions
+in common, such as a routine {\tt Repaint} to redraw the object
+onto the screen.  This way, the code to repaint the entire screen 
+can simply call the {\tt Repaint} function on every object on the screen.
+The code that calls {\tt Repaint} doesn't need to know which
+kinds of objects are on the screen, as long as each implements
+{\tt Repaint}.
+
+\item You can share pieces of an implementation between two
+objects.  For example, if you were to implement both lists and 
+sorted lists in C, you'd probably find yourself repeating code
+in both places -- in fact, you might be really tempted to
+only implement sorted lists, so that you only had to debug
+one version.  Inheritance provides a way to re-use code
+between nearly similar classes.  For example, given an implementation
+of a list class, in C++ you can implement sorted lists by replacing
+the insert member function -- the other functions, delete, isFull,
+print, all remain the same.
+
+\end{enumerate}
+
+\subsubsection{Shared Behavior}
+
+Let me use our Stack example to illustrate the first of these.
+Our Stack implementation 
+above could have been implemented with linked lists, instead of an array.
+Any code using a Stack shouldn't
+care which implementation is being used, except that the linked list
+implementation can't overflow. (In fact, we could also change the
+array implementation to handle overflow by automatically resizing
+the array as items are pushed on the stack.)
+
+To allow the two implementations to coexist, we first define an
+{\em abstract} Stack, containing just the public member functions, 
+but no data.
+
+\begin{verbatim}
+class Stack {
+  public:
+    Stack();
+    virtual ~Stack();          // deallocate the stack
+    virtual void Push(int value) = 0; 
+                               // Push an integer, checking for overflow.
+    virtual bool Full() = 0;   // Is the stack is full?
+};
+
+// For g++, need these even though no data to initialize.
+Stack::Stack {}             
+Stack::~Stack() {}
+\end{verbatim}
+
+The {\tt Stack} definition is called a {\em base class} or sometimes a {\em
+superclass}.  We can then define two different {\em derived classes}, 
+sometimes called {\em subclasses} which inherit behavior from the base
+class.  (Of course, inheritance is recursive -- a derived class can in 
+turn be a base class for yet another derived class, and so on.)
+Note that I have prepended the functions in the base class is prepended 
+with the keyword {\tt virtual}, to signify that they can be redefined by 
+each of the two derived classes.  The virtual functions are
+initialized to zero, to tell the compiler that those functions
+must be defined by the derived classes.
+
+Here's how we could declare the array-based and list-based
+implementations of {\tt Stack}. The syntax {\tt : public Stack} signifies 
+that both {\tt ArrayStack} and {\tt ListStack} are kinds 
+of {\tt Stacks}, and share the same behavior as the base class.
+
+\begin{verbatim}
+class ArrayStack : public Stack {  // the same as in Section 2
+  public:
+    ArrayStack(int sz);   // Constructor:  initialize variables, allocate space.
+    ~ArrayStack();        // Destructor:   deallocate space allocated above.
+    void Push(int value); // Push an integer, checking for overflow.
+    bool Full();     // Returns TRUE if the stack is full, FALSE otherwise.
+  private:
+    int size;        // The maximum capacity of the stack.
+    int top;         // Index of the lowest unused position.
+    int *stack;      // A pointer to an array that holds the contents.
+};
+
+class ListStack : public Stack {
+  public:
+    ListStack(); 
+    ~ListStack();
+    void Push(int value);
+    bool Full();
+  private:
+    List *list;		// list of items pushed on the stack
+};
+
+ListStack::ListStack() { 
+    list = new List;
+}
+
+ListStack::~ListStack() { 
+    delete list; 
+}
+\end{verbatim}
+\newpage
+\begin{verbatim}
+void ListStack::Push(int value) {
+    list->Prepend(value); 
+}
+
+bool ListStack::Full() {
+    return FALSE; 	// this stack never overflows!
+}  
+\end{verbatim}
+
+The neat concept here is that I can assign pointers to instances of
+{\tt ListStack} or {\tt ArrayStack} to a variable of type {\tt Stack}, and
+then use them as if they were of the base type.
+
+\begin{verbatim}
+    Stack *s1 = new ListStack;
+    Stack *s2 = new ArrayStack(17);
+
+    if (!stack->Full())
+        s1->Push(5);
+    if (!s2->Full())
+        s2->Push(6);
+
+    delete s1;
+    delete s2;
+\end{verbatim}
+
+The compiler automatically invokes {\tt ListStack} operations
+for {\tt s1}, and {\tt ArrayStack} operations for {\tt s2};
+this is done by creating a procedure table for each object,
+where derived objects override the default entries in the table
+defined by the base class.  To the code above, it invokes the
+operations {\tt Full}, {\tt Push}, and {\tt delete} by indirection
+through the procedure table, so that the code doesn't need to know
+which kind of object it is.
+
+In this example, since I never create an instance of the
+abstract class {\tt Stack}, I do not need to {\em implement} its
+functions.  This might seem a bit strange, but remember that
+the derived classes are the various implementations of Stack,
+and Stack serves only to reflect the shared behavior between
+the different implementations.  
+
+Also note that the destructor for {\tt Stack} is a virtual 
+function but the constructor is not.  Clearly, when I create an
+object, I have to know which kind of object it is, whether 
+{\tt ArrayStack} or {\tt ListStack}.  The compiler 
+makes sure that no one creates an instance of the abstract {\tt Stack} 
+by mistake -- you cannot instantiate any class whose virtual 
+functions are not completely defined (in other words, if any of 
+its functions are set to zero in the class definition).
+
+But when I deallocate an object, I may no longer know its exact
+type.  In the above code, I want to call the destructor for the
+derived object, even though the code only knows that I am deleting
+an object of class {\tt Stack}.  If the destructor were not virtual,
+then the compiler would invoke {\tt Stack}'s destructor, which is 
+not at all what I want.  This is an easy mistake to make (I made
+it in the first draft of this article!) -- if you don't define
+a destructor for the abstract class, the compiler will define one 
+for you implicitly (and by the way, it won't be virtual, since you
+have a {\em really} unhelpful compiler).  The result for the
+above code would be a memory leak, and who knows how you would 
+figure that out!
+
+\subsubsection{Shared Implementation}
+
+What about sharing code, the other reason for inheritance? 
+In C++, it is possible to use member functions
+of a base class in its derived class.  (You can also share
+data between a base class and derived classes, but this
+is a bad idea for reasons I'll discuss later.)
+
+Suppose that I wanted to add a new member function,
+{\tt NumberPushed()}, to both implementations of {\tt Stack}.
+The {\tt ArrayStack} class already keeps count of the number of
+items on the stack, so I could duplicate that code in {\tt ListStack}.
+Ideally, I'd like to be able to use the same code in both places.
+With inheritance, we can move the counter into the 
+{\tt Stack} class, and then invoke the base class operations
+from the derived class to update the counter.
+
+\begin{verbatim}
+class Stack {
+  public:
+    virtual ~Stack();		// deallocate data
+    virtual void Push(int value); // Push an integer, checking for overflow.
+    virtual bool Full() = 0;	// return TRUE if full
+    int NumPushed();	        // how many are currently on the stack?
+  protected:
+    Stack();			// initialize data
+  private:
+    int numPushed;
+};
+
+Stack::Stack() { 
+    numPushed = 0; 
+}
+
+void Stack::Push(int value) { 
+    numPushed++; 
+}
+
+int Stack::NumPushed() { 
+    return numPushed; 
+}
+\end{verbatim}
+
+We can then modify both {\tt ArrayStack} and {\tt ListStack}
+to make use the new behavior of {\tt Stack}.  I'll only list
+one of them here:
+
+\begin{verbatim}
+class ArrayStack : public Stack {
+  public:
+    ArrayStack(int sz);   
+    ~ArrayStack();        
+    void Push(int value); 
+    bool Full();     
+  private:
+    int size;        // The maximum capacity of the stack.
+    int *stack;      // A pointer to an array that holds the contents.
+};
+
+ArrayStack::ArrayStack(int sz) : Stack() { 
+    size = sz;
+    stack = new int[size];   // Let's get an array of integers.
+}
+
+void
+ArrayStack::Push(int value) {
+    ASSERT(!Full());
+    stack[NumPushed()] = value;
+    Stack::Push();	     // invoke base class to increment numPushed
+}
+\end{verbatim}
+
+There are a few things to note:
+
+\begin{enumerate}
+
+\item The constructor for {\tt ArrayStack} needs to invoke the
+constructor for {\tt Stack}, in order to initialize {\tt numPushed}.
+It does that by adding {\tt : Stack()} to the first line in the constructor:
+
+\begin{verbatim}
+ArrayStack::ArrayStack(int sz) : Stack()
+\end{verbatim}
+
+The same thing applies to destructors.  There are special rules for which 
+get called first -- the constructor/destructor for the base class or 
+the constructor/destructor for the derived class.  All I should say is,
+it's a bad idea to rely on whatever the rule is -- more generally, it is a 
+bad idea to write code which requires the reader to consult a manual 
+to tell whether or not the code works!
+
+\item I introduced a new keyword, {\tt protected}, in the new definition
+of {\tt Stack}.  For a base class, {\tt protected} signifies that those
+member data and functions are accessible to classes derived (recursively)
+from this class, but inaccessible to other classes.  In other words, protected
+data is {\tt public} to derived classes, and {\tt private} to everyone else.
+For example, we need {\tt Stack}'s constructor to be callable by 
+{\tt ArrayStack} and {\tt ListStack}, but we don't want anyone
+else to create instances of {\tt Stack}.  Hence, we make {\tt Stack}'s 
+constructor a protected function.  In this case, this is not strictly
+necessary since the compiler will complain if anyone tries to create an
+instance of {\tt Stack} because {\tt Stack} still has an undefined virtual 
+functions, {\tt Push}.  By defining {\tt Stack::Stack} as {\tt protected}, 
+you are safe even if someone comes along later and defines {\tt Stack::Push}.
+
+Note however that I made {\tt Stack}'s data member {\tt private}, not
+{\tt protected}.  Although there is some debate on this point,
+as a rule of thumb you should never allow one class to see directly
+access the data in another, even among classes related
+by inheritance.  Otherwise, if you ever change the implementation
+of the base class, you will have to examine and change all the 
+implementations of the derived classes, violating modularity.
+
+\item The interface for a derived class automatically includes all
+functions defined for its base class, without having to explicitly 
+list them in the derived class.  Although we didn't define 
+{\tt NumPushed()} in {\tt ArrayStack}, we can still call it for 
+those objects:
+
+\begin{verbatim}
+    ArrayStack *s = new ArrayStack(17);
+
+    ASSERT(s->NumPushed() == 0);	// should be initialized to 0
+\end{verbatim}
+
+\item Conversely, even though we have defined a routine {\tt Stack::Push()},
+because it is declared as {\tt virtual}, if we invoke {\tt Push()} 
+on an {\tt ArrayStack} object, we will get {\tt ArrayStack}'s version 
+of {\tt Push}:
+
+\begin{verbatim}
+    Stack *s = new ArrayStack(17);
+
+    if (!s->Full())		// ArrayStack::Full
+        s->Push(5);		// ArrayStack::Push
+\end{verbatim}
+
+\item {\tt Stack::NumPushed()} is not {\tt virtual}.  That means 
+that it cannot be re-defined by {\tt Stack}'s derived classes.
+Some people believe that you should mark {\em all} functions
+in a base class as {\tt virtual}; that way, if you later want to
+implement a derived class that redefines a function, you don't have
+to modify the base class to do so.
+
+\item Member functions in a derived class can explicitly invoke 
+public or protected functions in the base class, by the full
+name of the function, {\tt Base::Function()}, as in:
+
+\begin{verbatim}
+void ArrayStack::Push(int value)
+{
+    ...
+    Stack::Push();	     // invoke base class to increment numPushed
+}
+\end{verbatim}
+
+Of course, if we just called {\tt Push()} here (without prepending 
+{\tt Stack::}, the compiler would think we were referring 
+to {\tt ArrayStack}'s {\tt Push()}, and so that would recurse,
+which is not exactly what we had in mind here.
+
+\end{enumerate}
+
+Whew!  Inheritance in C++ involves lots and lots of details.
+But it's real downside is that it tends to spread implementation 
+details across multiple files -- if you have a deep inheritance 
+tree, it can take some serious digging to figure out what code 
+actually executes when a member function is invoked.
+
+So the question to ask yourself before using inheritance is:
+what's your goal?  Is it to write your programs with the
+fewest number of characters possible?  If so, inheritance is
+really useful, but so is changing all of your function and variable 
+names to be one letter long -- "a", "b", "c" -- and once you
+run out of lower case ones, start using upper case, then two character 
+variable names: "XX XY XZ Ya ..." (I'm joking here.)
+Needless to say, it is really easy to write unreadable code
+using inheritance.  
+
+So when is it a good idea to use inheritance and when should it be
+avoided?  My rule of thumb is to only use it for representing 
+{\em shared behavior} between objects, and to never use it for
+representing {\em shared implementation}.  With C++, you can use 
+inheritance for both concepts, but only the first will lead to
+truly simpler implementations.
+
+To illustrate the difference between shared behavior and shared
+implementation, suppose you had a whole bunch of different kinds
+of objects that you needed to put on lists.  For example, almost everything
+in an operating system goes on a list of some sort: buffers, threads,
+users, terminals, etc.
+
+A very common approach to this problem (particularly among people new
+to object-oriented programming) is to make every object inherit from
+a single base class {\em Object}, which contains the forward and backward
+pointers for the list.  But what if some object needs to go on multiple
+lists?  The whole scheme breaks down, and it's because we tried to use
+inheritance to share implementation (the code for the forward and backward
+pointers) instead of to share behavior.  A much cleaner (although slightly
+slower) approach would
+be to define a list implementation that allocated forward/backward
+pointers for each object that gets put on a list.
+
+In sum, if two classes share at least some of the same member function
+signatures -- that is, the same behavior, {\em and} if there's code that
+only relies on the shared behavior, then there {\em may}
+be a benefit to using inheritance.  In Nachos, locks don't inherit from
+semaphores, even though locks are implemented using semaphores.  The
+operations on semaphores and locks are different.  Instead, inheritance is
+only used for various kinds of lists (sorted, keyed, etc.),
+and for different implementations of the physical disk abstraction,
+to reflect whether the disk has a track buffer, etc.  A disk is used
+the same way whether or not it has a track buffer; the only difference is
+in its performance characteristics.
+
+\subsection{Templates}
+
+Templates are another useful but dangerous concept in C++.
+With templates, you can parameterize a class definition
+with a {\em type}, to allow you to write generic type-independent
+code.  For example, our {\tt Stack} implementation above only worked 
+for pushing and popping {\em integers}; what if we wanted a stack 
+of characters, or floats, or pointers, or some arbitrary data structure?
+
+In C++, this is pretty easy to do using templates:
+
+\begin{verbatim}
+template <class T> 
+class Stack {
+  public:
+    Stack(int sz);    // Constructor:  initialize variables, allocate space.
+    ~Stack();         // Destructor:   deallocate space allocated above.
+    void Push(T value); // Push an integer, checking for overflow.
+    bool Full();      // Returns TRUE if the stack is full, FALSE otherwise.
+  private:
+    int size;         // The maximum capacity of the stack.
+    int top;          // Index of the lowest unused position.
+    T *stack;       // A pointer to an array that holds the contents.
+};
+\end{verbatim}
+
+To define a template, we prepend the keyword {\tt template} to
+the class definition, and we put the parameterized type for the
+template in angle brackets.  If we need to parameterize the implementation
+with two or more types, it works just like an argument list:
+{\tt template <class T, class S>}.  We can use the type parameters
+elsewhere in the definition, just like they were normal types.
+
+When we provide the implementation for each of the member functions
+in the class, we also have to declare them as templates, and again,
+once we do that, we can use the type parameters just like normal types:
+
+\begin{verbatim}
+     // template version of Stack::Stack
+template <class T> 
+Stack<T>::Stack(int sz) {
+    size = sz;
+    top = 0;
+    stack = new T[size];   // Let's get an array of type T
+}
+
+     // template version of Stack::Push
+template <class T> 
+void
+Stack<T>::Push(T value) {
+    ASSERT(!Full());
+    stack[top++] = value;
+}
+\end{verbatim}
+
+Creating an object of a template class is similar to creating
+a normal object:
+
+\begin{verbatim}
+void
+test() {
+    Stack<int> s1(17);
+    Stack<char> *s2 = new Stack<char>(23);
+
+    s1.Push(5);
+    s2->Push('z');
+    delete s2;
+}
+\end{verbatim}
+
+Everything operates as if we defined two classes, one
+called {\tt Stack<int>} -- a stack of integers, and one
+called {\tt Stack<char>} -- a stack of characters.
+{\tt s1} behaves just like an instance of the first;
+{\tt s2} behaves just like an instance of the second.
+In fact, that is exactly how templates are typically implemented --
+you get a complete {\em copy} of the code for the template
+for each different instantiated type. In the above example,
+we'd get one copy of the code for {\tt ints} and one copy for {\tt chars}.
+
+So what's wrong with templates?  You've all been taught to make
+your code modular so that it can be re-usable, so {\em everything}
+should be a template, right?  Wrong.  
+
+The principal problem with templates is that they can be {\em very} 
+difficult to debug -- templates are easy to use if they work, but 
+finding a bug in them can be difficult. In part this is because 
+current generation C++ debuggers don't really understand templates 
+very well.  Nevertheless, it is easier to debug a template than
+two nearly identical implementations that differ only in their types.
+
+So the best advice is -- don't make a class into a template
+unless there really is a near term use for the template. And if you
+do need to implement a template, implement and debug a non-template
+version first.  Once that is working, it won't be hard to convert
+it to a template.  Then all you have to worry about code
+explosion -- e.g., your program's object code is now megabytes
+because of the 15 copies of the hash table/list/... routines, one for 
+each kind of thing you want to put in a hash table/list/...
+(Remember, you have an unhelpful compiler!)
+
+\section{Features To Avoid Like the Plague}
+
+Despite the length of this note, there are numerous
+features in C++ that I haven't explained.  I'm sure each feature
+has its advocates, but despite programming in C and C++ for over 15 
+years, I haven't found a compelling reason to use them in any code
+that I've written (outside of a programming language class!) 
+
+Indeed, there is a compelling reason to avoid using these features -- they are 
+easy to misuse, resulting in programs that are harder to read and understand
+instead of easier to understand.  In most cases, the features are also 
+redundant -- there are other ways of accomplishing the same end.  Why have
+two ways of doing the same thing?  Why not stick with the simpler one?
+
+I do not use any of the following features in Nachos.  
+If you use them, {\it caveat hacker}.
+
+\begin{enumerate}
+
+\item {\bf Multiple inheritance.}  It is possible in C++ to define
+a class as inheriting behavior from multiple classes (for instance,
+a dog is both an animal and a furry thing).  But if programs
+using single inheritance can be difficult to untangle, programs
+with multiple inheritance can get really confusing.
+
+\item {\bf References.}  Reference variables are rather hard to
+understand in general; they play the same role as pointers, with
+slightly different syntax (unfortunately, I'm not joking!) 
+Their most common use is to declare some parameters to a function 
+as {\it reference parameters}, as in Pascal.  A call-by-reference 
+parameter can be modified by the calling function, without the callee 
+having to pass a pointer.  The effect is that parameters look 
+(to the caller) like they are called by value (and therefore can't change), 
+but in fact can be transparently modified by the called function.
+Obviously, this can be a source of obscure bugs, not to mention
+that the semantics of references in C++ are in general not obvious.
+
+\item {\bf Operator overloading.}  C++ lets you redefine the meanings
+of the operators (such as {\tt +} and \verb+>>+) for class objects.
+This is dangerous at best ("exactly which implementation of '+' does
+this refer to?"), and when used in non-intuitive ways, a
+source of great confusion, made worse by the fact that C++ does 
+implicit type conversion, which can affect which operator
+is invoked.  Unfortunately, C++'s I/O facilities
+make heavy use of operator overloading and references, so you
+can't completely escape them, but think twice before you redefine
+'+' to mean ``concatenate these two strings''.
+
+\item {\bf Function overloading.}  You can also define different functions
+in a class with the same name but different argument types.  This is also
+dangerous (since it's easy to slip up and get the unintended version), 
+and we never use it.  We will also avoid using default arguments (for the
+same reason).  Note that it can be a good idea to use the same name for 
+functions in different classes, provided they use the same
+arguments and behave the same way -- a good example of this is that 
+most Nachos objects have a {\tt Print()} method.
+
+\item {\bf Standard template library.} An ANSI standard has emerged for a
+library of routines implementing such things as lists, hash tables,
+etc., called the standard template library.  Using such a library
+should make programming much simpler if the data structure you need
+is already provided in the library.  Alas, the standard template
+library pushes the envelope of legal C++, and so virtually no
+compilers (including g++) can support it today.  Not to mention that 
+it uses (big surprise!) references, operator overloading, and 
+function overloading.
+
+\item {\bf Exceptions.} There are two ways to return an error from
+a procedure.  One is simple -- just define the procedure to return
+an error code if it isn't able to do it's job.  For example,
+the standard library routine {\tt malloc} returns NULL if there
+is no available memory.  However, lots of programmers are lazy and 
+don't check error codes.  So what's the solution?  You might think 
+it would be to get programmers who aren't lazy, but no, the C++ solution 
+is to add a programming language construct!  A procedure can
+return an error by ``raising an exception'' which effectively
+causes a {\tt goto} back up the execution stack to the last
+place the programmer put an exception handler.  You would think
+this is too bizarre to be true, but unfortunately,
+I'm not making this up.
+
+\end{enumerate}
+
+While I'm at it, there are a number of features of C that you also
+should avoid, because they lead to bugs and make your code less easy
+to understand.  See Maguire's "Writing Solid Code" for a more complete
+discussion of this issue.  All of these features are legal C;
+what's legal isn't necessarily good.
+
+\begin{enumerate}
+\item Pointer arithmetic.  Runaway pointers are a principal source 
+of hard-to-find bugs in C programs, because the symptom of this happening
+can be mangled data structures in a completely different part of the program.
+Depending on exactly which objects are allocated on the heap in which 
+order, pointer bugs can appear and disappear, seemingly at random.
+For example, {\tt printf} sometimes allocates memory on the heap,
+which can change the addresses returned by all future calls to {\tt new}.
+Thus, adding a {\tt printf} can change things so that a pointer
+which used to (by happenstance) mangle a critical data structure
+(such as the middle of a thread's execution stack), now overwrites memory 
+that may not even be used.
+
+The best way to avoid runaway pointers is (no surprise) to be 
+{\em very} careful when using pointers.  Instead of iterating
+through an array with pointer arithmetic, use a separate index  
+variable, and assert that the index is never larger than the size
+of the array.  Optimizing compilers have gotten very good, so that the
+generated machine code is likely to be the same in either case.
+
+Even if you don't use pointer arithmetic, it's still easy
+(easy is bad in this context!) to have an off-by-one errror 
+that causes your program to step beyond the end of an array.
+How do you fix this?  Define a class to contain the array
+{\em and its length}; before allowing any access to the array,
+you can then check whether the access is legal or in error.
+
+\item Casts from integers to pointers and back.  Another source
+of runaway pointers is that C and C++ allow you to convert
+integers to pointers, and back again.  Needless to say, using a 
+random integer value as a pointer is likely to result in unpredictable
+symptoms that will be very hard to track down.
+
+In addition, on some 64 bit machines, such as the Alpha, it is
+no longer the case that the size of an integer is the same as the
+the size of a pointer.  If you cast between pointers and integers,
+you are also writing highly non-portable code.
+
+\item Using bit shift in place of a multiply or divide.
+This is a clarity issue.  If you are doing arithmetic, use
+arithmetic operators; if you are doing bit manipulation,
+use bitwise operators.  If I am trying to multiply by 8, which is 
+easier to understand, {\tt x << 3} or {\tt x * 8}?  In the 70's, 
+when C was being developed, the former would yield more efficient 
+machine code, but today's compilers generate the same code in both
+cases, so readability should be your primary concern.
+
+\item Assignment inside conditional.  Many programmers have the attitude
+that simplicity equals saving as many keystrokes as possible.
+The result can be to hide bugs that would otherwise be obvious.
+For example:
+
+\begin{verbatim}
+    if (x = y) {
+      ...
+\end{verbatim}
+
+Was the intent really {\tt x == y}?  After all, it's pretty easy
+to mistakenly leave off the extra equals sign.  By never using
+assignment within a conditional, you can tell by code inspection
+whether you've made a mistake.
+
+\item Using {\tt \#define} when you could use {\tt enum}.
+When a variable can hold one of a small number of values,
+the original C practice was to use {\tt \#define} to set up 
+symbolic names for each of the values.  {\tt enum} does this 
+in a type-safe way -- it allows the compiler to verify
+that the variable is only assigned one of the enumerated values,
+and none other.  Again, the advantage is to eliminate a class of
+errors from your program, making it quicker to debug.
+\end{enumerate}
+\newpage
+
+\section{Style Guidelines}
+
+Even if you follow the approach I've outlined above, it is still
+as easy to write unreadable and undebuggable code in C++ as it
+is in C, and perhaps easier, given the more powerful features the
+language provides.  For the Nachos project, and in general, we suggest 
+you adhere to the following guidelines (and tell us if you catch us 
+breaking them):
+
+\begin{enumerate}
+
+\item Words in a name are separated SmallTalk-style (i.e., capital
+letters at the start of each new word).  All class names and member
+function names begin with a capital letter, except for member
+functions of the form {\tt getSomething()} and {\tt setSomething()},
+where {\tt Something} is a data element of the class (i.e., accessor
+functions).  Note that you would want to provide such functions only
+when the data should be visible to the outside world, but you want to
+force all accesses to go through one function.  This is often a good
+idea, since you might at some later time decide to compute the data
+instead of storing it, for example.
+
+\item All global functions should be capitalized,
+except for {\tt main} and library
+functions, which are kept lower-case for historical reasons.
+
+\item Minimize the use of global variables.  If you find yourself
+using a lot of them, try and group some together in a class in a
+natural way or pass them as arguments to the functions that need them
+if you can.
+
+\item Minimize the use of global functions (as opposed to member
+functions).  If you write a function that operates on some object,
+consider making it a member function of that object.
+
+\item For every class or set of related classes, create a separate
+{\tt .h} file and {\tt .cc} file. The {\tt .h} file acts as the {\it
+interface} to the class, and the {\tt .cc} file acts as the
+{\it implementation} (a given {\tt .cc} file should {\tt include} it's
+respective {\tt .h} file).  If using a particular {\tt .h} file requires
+another {\tt .h} file to be included (e.g., {\tt synch.h} needs
+class definitions from {\tt thread.h}) you should include the dependency
+in the {\tt .h} file, so that the user of your class doesn't have to 
+track down all the dependencies himself.  
+To protect against multiple inclusion, bracket each {\tt .h}
+file with something like:
+\begin{verbatim}
+#ifndef STACK_H
+#define STACK_H
+
+class Stack { ... };
+
+#endif
+\end{verbatim}
+Sometimes this will not be enough, and you will have a circular
+dependency.  For example, you might have a {\tt .h} file that
+uses a definition from one {\tt .h} file, but also defines something
+needed by that {\tt .h} file.  In this case, you will have to do 
+something ad-hoc.  One thing to realize is that you don't always
+have to completely define a class before it is used.  If you
+only use a pointer to class {\tt Stack} and do not access any
+member functions or data from the class, you can write, in lieu of 
+including {\tt stack.h}:
+\begin{verbatim}
+class Stack;
+\end{verbatim}
+This will tell the compiler all it
+needs to know to deal with the pointer.  In a few cases this won't work,
+and you will have to move stuff around or alter your definitions.
+
+\item Use {\tt ASSERT} statements liberally to check that your program
+is behaving properly.  An assertion is a condition that if
+FALSE signifies that there is a bug in the program;
+{\tt ASSERT} tests an expression and aborts if the condition is
+false.  We used {\tt ASSERT} above in {\tt Stack::Push()} to check 
+that the stack wasn't full. The idea is to catch errors as early
+as possible, when they are easier to locate, instead of waiting until 
+there is a user-visible symptom of the error (such as a segmentation 
+fault, after memory has been trashed by a rogue pointer).
+
+Assertions are particularly useful at the beginnings and ends of 
+procedures, to check that the procedure was called with the right 
+arguments, and that the procedure did what it is supposed to.
+For example, at the beginning of List::Insert, you could assert that 
+the item being inserted isn't already on the list, and at the end of
+the procedure, you could assert that the item is now on the list.
+
+If speed is a concern, ASSERTs can be defined to make the check
+in the debug version of your program, and to be a no-op in the production
+version.  But many people run with ASSERTs enabled even in production.
+
+\item Write a module test for every module in your program.
+Many programmers have the notion that testing code means running
+the entire program on some sample input; if it doesn't crash, that 
+means it's working, right?  Wrong.  You have no way of knowing
+how much code was exercised for the test.  Let me urge you to
+be methodical about testing.  Before you put a new module
+into a bigger system, make sure the module works as advertised 
+by testing it standalone.  If you do this for every module, 
+then when you put the modules together, instead of {\em hoping}
+that everything will work, you will {\em know} it will work.
+
+Perhaps more importantly, module tests provide an opportunity
+to find as many bugs as possible in a localized context.  
+Which is easier: finding a bug in a 100 line program, or in a 
+10000 line program?
+
+\end{enumerate}
+
+\section{Compiling and Debugging}
+
+The Makefiles we will give you works only with the GNU version of
+make, called ``gmake''.  You may want
+to put ``alias make gmake'' in your .cshrc file.
+
+You should use {\bf gdb} to debug your program rather than {\bf dbx}.
+Dbx doesn't know how to decipher C++ names, so you will see function
+names like \verb+Run__9SchedulerP6Thread+.
+
+On the other hand, in GDB (but not DBX) when you do a stack backtrace
+when in a forked thread (in homework 1), after printing out the
+correct frames at the top of the stack, the debugger will sometimes
+go into a loop printing the lower-most frame ({\tt ThreadRoot}), and 
+you have to type control-C when it says ``more?''.  If you understand
+assembly language and can fix this, please let me know.
+
+\section{Example: A Stack of Integers}
+
+We've provided the complete, working code for the stack example.  You should
+read through it and play around with it to make sure you understand
+the features of C++ described in this paper.
+
+To compile the simple stack test, type {\tt make all} --
+this will compile the simple stack test ({\tt stack.cc}), 
+the inherited stack test ({\tt inheritstack.cc}), and
+the template version of stacks ({\tt templatestack.cc}).
+
+\section{Epilogue}
+
+I've argued in this note that you should avoid using certain C++ 
+and C features.  But you're probably thinking I must be leaving 
+something out -- if someone put the
+feature in the language, there must be a good reason, right?  I believe that
+every programmer should strive to write code whose behavior would be
+immediately obvious to a reader;
+if you find yourself writing code that would require someone reading the code
+to thumb through a manual in order to understand it, you are almost certainly
+being way too subtle.  There's probably a much simpler and more obvious
+way to accomplish the same end.  Maybe the code will be a little longer
+that way,
+but in the real world, it's whether the code works and how simple it is for
+someone else to modify, that matters a whole lot more than how many
+characters you had to type.
+
+A final thought to remember:
+
+\begin{quote}
+``There are two ways of constructing a software design: one way is to
+make it so simple that there are {\em obviously} no deficiencies and
+the other way is to make it so complicated that there are no {\em
+obvious} deficiencies.'' \\ \hbox{} \hfill C. A. R. Hoare, ``The Emperor's
+Old Clothes'', CACM Feb. 1981
+\end{quote}
+
+\section{Further Reading}
+
+\begin{itemize}
+\item[] James Coplien, ``Advanced C++'', Addison-Wesley.
+This book is only for experts, but it has some good ideas in it,
+so keep it in mind once you've been programming in C++ for a few years.
+
+\item[] James Gosling.  ``The Java Language.''  Online at
+``http://java.sun.com/''  Java is a safe subset of C++.  It's main 
+application is the safe extension of Web browsers by allowing 
+you to download Java code as part of clicking on a link to 
+interpret and display the document.  Safety is key here, since 
+after all, you don't want to click on a Web link and have 
+it download code that will crash your browser.  Java was defined 
+independently of this document, but interestingly, it enforces a 
+very similar style (for example, no multiple inheritance and
+no operator overloading).
+
+\item[] C.A.R. Hoare, ``The Emperor's Old Clothes.''
+{\em Communications of the ACM}, Vol. 24, No. 2, February 1981,
+pp. 75-83.  Tony Hoare's Turing Award lecture.  How do you build 
+software that really works?  Attitude is everything -- you need
+a healthy respect for how hard it is to build working software. 
+It might seem that addding this whiz-bang feature is only 
+``a small matter of code'', but that's the path to late, buggy
+products that don't work.
+
+\item[] Brian Kernighan and Dennis Ritchie, ``The C Programming Language'',
+Prentice-Hall.  The original C book -- a very easy read.  But the
+language has evolved since it was first designed, and this book doesn't
+describe all of C's newest features.  But still the best place for
+a beginner to start, even when learning C++.
+
+\item[] Steve Maguire, ``Writing Solid Code'', Microsoft Press.
+How to write bug-free software; I think this should be required 
+reading for all software engineers.  This really {\em will} change 
+your life -- if you don't follow the recommendations in this book, 
+you'll probably never write code that completely works, and you'll
+spend your entire life struggling with hard to find bugs.  
+There is a better way!  Contrary to the programming language types, 
+this doesn't involve proving the correctness of your programs, whatever
+that means.  Instead, Maguire has a set of practical engineering 
+solutions to writing solid code.
+
+\item[] Steve Maguire, ``Debugging the Development Process'', Microsoft Press.
+Maguire's follow up book on how to lead an effective team, and
+by the way, how to be an effective engineer.  Maguire's background is 
+that he is a turnaround artist for Microsoft -- he gets assigned to 
+floundering teams, and figures out how to make them effective.
+After you've pulled a few all-nighters to get that last bug out
+of your course project, you're probably wondering why in heck you're
+studying computer science anyway.  This book will explain how
+to write programs that work, {\em and} still have a life!
+
+\item[] Scott Meyers, ``Effective C++''.  This book describes how
+50 easy ways to make mistakes C++; if you avoid these, you will 
+be a lot more likely to write C++ code that works.
+
+\item[] Bjarne Stroustrup, ``The C++ Programming Language'', Addison-Wesley.
+This should be the definite reference manual, but it isn't.
+You probably thought I was joking when I said the C++ language was
+continually evolving.  I bought the second edition of this
+book three years ago, and it is already out of date.
+Fortunately, it's still OK for the subset of C++ that I use.
+\end{itemize}
+
+\end{document}

@@ -1,0 +1,28 @@
+# This is part of a GNU-Makefile, to specify system-dependent 
+# parts of the Makefile enviroment.
+#
+# This gets included as part of the GNU-Makefile used in each of 
+# the subdirectories.
+#
+# Depending on your platform, you need to select the correct definition.
+# Also, you need to edit the Makefile in the bin subdirectory.
+
+# DEC MIPS, Ultrix
+# HOST = -DHOST_MIPS
+
+# SUN SPARC, Sun 4.xx 
+# HOST = -DHOST_SPARC -DHOST_IS_BIG_ENDIAN
+# LDFLAGS = -lsocket -lnls
+
+# HP PA-RISC, HP_UX
+# HOST = -DHOST_SNAKE -DHOST_IS_BIG_ENDIAN
+
+# 386, 386BSD Unix, or NetBSD Unix (available via anon ftp 
+#    from agate.berkeley.edu)
+# also, Linux
+HOST = -DHOST_i386
+LDFLAGS =
+
+# slight variant for 386 FreeBSD
+# HOST = -DHOST_i386 -DFreeBSD
+# CPP=/usr/bin/cpp
