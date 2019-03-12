@@ -115,6 +115,8 @@ Lab2Exercise3_1()
 }
 ```
 
+Result
+
 ```txt
 $ threads/nachos -q 5
 Lab2 Exercise3-1:
@@ -132,6 +134,86 @@ UID     TID     NAME    PRI     STATUS
 ```
 
 ### 2. Change insertion of readyList by using SortedInsert
+
+Modify `Scheduler::ReadyToRun` in `threads/scheduler.cc`
+
+```cpp
+void
+Scheduler::ReadyToRun (Thread *thread)
+{
+
+    // readyList->Append((void *)thread); // Orignal
+    readyList->SortedInsert((void *)thread, thread->getPriority()); // Lab2: insert Thread with priority
+}
+```
+
+Test (add the following test in `threads/threadtest.cc`) and as case 6
+
+> I've also changed a little bit output of `CustomThreadFunc()`
+
+```cpp
+//----------------------------------------------------------------------
+// Lab2 Exercise3-2
+// 	Fork some Thread with different priority
+//  and observe if the lower one will take over the CPU
+//----------------------------------------------------------------------
+
+void
+Lab2Exercise3_2()
+{
+    DEBUG('t', "Entering Lab2Exercise3_2");
+
+    Thread *t1 = new Thread("lower", 78);
+    Thread *t2 = new Thread("highest", 87);
+    // The lowest one will be put in front of the list
+    // due to SortedInsert() in list.cc
+    Thread *t3 = new Thread("lowest", 38);
+
+    t1->Fork(CustomThreadFunc, (void*)0);
+    t2->Fork(CustomThreadFunc, (void*)0);
+    t3->Fork(CustomThreadFunc, (void*)0);
+
+    CustomThreadFunc(0); // Yield the current thread
+
+    // Because the main() Thread has priority 0
+    // Then any process yield will make main keep running
+    // Since 0 is the lowest number and it will be in front of the readyList
+    // So the TS command will be called right after the first Yield()
+    printf("--- Calling TS command ---\n");
+    TS();
+    printf("--- End of TS command ---\n\n");
+}
+```
+
+Result
+
+```txt
+$ threads/nachos -q 6
+Lab2 Exercise3-2:
+*** current thread (uid=0, tid=0, pri=0 name=main) => Yield
+Ready list contents:
+lowest, lower, highest,
+
+*** current thread (uid=0, tid=3, pri=38 name=lowest) => Yield
+Ready list contents:
+main, lower, highest,
+
+--- Calling TS command ---
+UID     TID     NAME    PRI     STATUS
+0       0       main    0       RUNNING
+0       1       lower   78      READY
+0       2       highest 87      READY
+0       3       lowest  38      READY
+--- End of TS command ---
+
+*** current thread (uid=0, tid=1, pri=78 name=lower) => Yield
+Ready list contents:
+highest,
+
+*** current thread (uid=0, tid=2, pri=87 name=highest) => Yield
+Ready list contents:
+lower,
+```
 
 ## Challenge 1: More expansion
 

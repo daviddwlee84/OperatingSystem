@@ -145,11 +145,13 @@ TS()
 void
 CustomThreadFunc(int which)
 {
-    printf("*** current thread (uid=%d, tid=%d, name=%s) => ", currentThread->getUserId(), currentThread->getThreadId(), currentThread->getName());
+    printf("*** current thread (uid=%d, tid=%d, pri=%d name=%s) => ", currentThread->getUserId(), currentThread->getThreadId(), currentThread->getPriority(), currentThread->getName());
     switch (which)
     {
         case 0:
             printf("Yield\n");
+            scheduler->Print();
+            printf("\n\n");
             currentThread->Yield();
             break;
         case 1:
@@ -224,6 +226,38 @@ Lab2Exercise3_1()
 }
 
 //----------------------------------------------------------------------
+// Lab2 Exercise3-2
+// 	Fork some Thread with different priority
+//  and observe if the lower one will take over the CPU
+//----------------------------------------------------------------------
+
+void
+Lab2Exercise3_2()
+{
+    DEBUG('t', "Entering Lab2Exercise3_2");
+
+    Thread *t1 = new Thread("lower", 78);
+    Thread *t2 = new Thread("highest", 87);
+    // The lowest one will be put in front of the list
+    // due to SortedInsert() in list.cc
+    Thread *t3 = new Thread("lowest", 38);
+
+    t1->Fork(CustomThreadFunc, (void*)0);
+    t2->Fork(CustomThreadFunc, (void*)0);
+    t3->Fork(CustomThreadFunc, (void*)0);
+
+    CustomThreadFunc(0); // Yield the current thread
+
+    // Because the main() Thread has priority 0
+    // Then any process yield will make main keep running
+    // Since 0 is the lowest number and it will be in front of the readyList
+    // So the TS command will be called right after the first Yield()
+    printf("--- Calling TS command ---\n");
+    TS();
+    printf("--- End of TS command ---\n\n");
+}
+
+//----------------------------------------------------------------------
 // ThreadTest
 // 	Invoke a test routine.
 //----------------------------------------------------------------------
@@ -250,6 +284,10 @@ ThreadTest()
     case 5:
         printf("Lab2 Exercise3-1:\n");
         Lab2Exercise3_1();
+        break;
+    case 6:
+        printf("Lab2 Exercise3-2:\n");
+        Lab2Exercise3_2();
         break;
     default:
         printf("No test specified.\n");
