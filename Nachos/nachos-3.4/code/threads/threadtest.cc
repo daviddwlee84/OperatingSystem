@@ -117,7 +117,7 @@ Lab1Exercise4_1()
 }
 
 //----------------------------------------------------------------------
-// TS command
+// TS command (Lab 1) (extend in Lab 2 for priority)
 // 	Showing current threads' status (like ps in Linux)
 //----------------------------------------------------------------------
 
@@ -128,10 +128,10 @@ TS()
 
     const char* TStoString[] = {"JUST_CREATED", "RUNNING", "READY", "BLOCKED"};
 
-    printf("UID\tTID\tNAME\tSTATUS\n");
+    printf("UID\tTID\tNAME\tPRI\tSTATUS\n");
     for (int i = 0; i < MAX_THREAD_NUM; i++) { // check pid flag
         if (tid_flag[i]) {
-            printf("%d\t%d\t%s\t%s\n", tid_pointer[i]->getUserId(), tid_pointer[i]->getThreadId(), tid_pointer[i]->getName(), TStoString[tid_pointer[i]->getThreadStatus()]);
+            printf("%d\t%d\t%s\t%d\t%s\n", tid_pointer[i]->getUserId(), tid_pointer[i]->getThreadId(), tid_pointer[i]->getName(), tid_pointer[i]->getPriority(), TStoString[tid_pointer[i]->getThreadStatus()]);
         }
     }
 }
@@ -196,6 +196,34 @@ Lab1Exercise4_2()
 }
 
 //----------------------------------------------------------------------
+// Lab2 Exercise3-1
+// 	Fork some Thread with different ways to initial the priority
+//----------------------------------------------------------------------
+
+void
+Lab2Exercise3_1()
+{
+    DEBUG('t', "Entering Lab2Exercise3_1");
+
+    Thread *t1 = new Thread("with p", 87);
+
+    Thread *t2 = new Thread("set p");
+    t2->setPriority(100);
+
+    Thread *t3 = new Thread("no p");
+
+    t1->Fork(CustomThreadFunc, (void*)0);
+    t2->Fork(CustomThreadFunc, (void*)0);
+    t3->Fork(CustomThreadFunc, (void*)0);
+
+    CustomThreadFunc(0); // Yield the current thread
+
+    printf("--- Calling TS command ---\n");
+    TS();
+    printf("--- End of TS command ---\n");
+}
+
+//----------------------------------------------------------------------
 // ThreadTest
 // 	Invoke a test routine.
 //----------------------------------------------------------------------
@@ -218,6 +246,10 @@ ThreadTest()
     case 4:
         printf("Lab1 Exercise4-2:\n");
         Lab1Exercise4_2();
+        break;
+    case 5:
+        printf("Lab2 Exercise3-1:\n");
+        Lab2Exercise3_1();
         break;
     default:
         printf("No test specified.\n");

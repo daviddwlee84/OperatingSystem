@@ -84,7 +84,11 @@ class Thread {
     int tid;                            // Lab1: Add thread ID
     int uid;                            // Lab1: Add user ID
 
+    // Lab2: priority of thread
+    int priority;                       // Lab2: Add priority
+
   public:
+    Thread(char* debugName, int p);		// Lab2: initialize a Thread with priority
     Thread(char* debugName);		// initialize a Thread 
     ~Thread(); 				// deallocate a Thread
 					// NOTE -- thread being deleted
@@ -111,6 +115,10 @@ class Thread {
     int getUserId() { return (uid); }           // Lab1: Get user ID
     void setUserId(int userId) { uid = userId; }// Lab1: Set user ID
     ThreadStatus getThreadStatus() { return (status); } // Lab1: Get thread status
+
+    // Lab2: priority of thread
+    int getPriority() { return (priority); }  // Lab2: Get priority
+    void setPriority(int p) { priority = p; } // Lab2: Set priority
 
   private:
     // some of the private data for this class is listed above

@@ -32,7 +32,8 @@
 //	"threadName" is an arbitrary string, useful for debugging.
 //----------------------------------------------------------------------
 
-Thread::Thread(char* threadName)
+Thread::Thread(char* threadName, int p)
+    : priority( p ) // Lab2: default priority
 {
     // Lab1: Allocate thread id for current thread
     bool success_allocate = FALSE;
@@ -51,7 +52,7 @@ Thread::Thread(char* threadName)
     ASSERT(success_allocate); // abort if unable to allocate new thread
 
     name = threadName;
-    uid = 0; // default user ID
+    uid = 0; // Lab1: default user ID
     stackTop = NULL;
     stack = NULL;
     status = JUST_CREATED;
@@ -59,6 +60,13 @@ Thread::Thread(char* threadName)
 #ifdef USER_PROGRAM
     space = NULL;
 #endif
+}
+
+// C++ Constructor Overloading
+Thread::Thread(char* threadName)
+    : Thread(threadName, 0)
+{
+    // do nothing special
 }
 
 //----------------------------------------------------------------------
