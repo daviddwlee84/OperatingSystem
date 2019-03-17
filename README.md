@@ -14,8 +14,9 @@ Lab  |Subject|Detail
 Lab 0|[Build Nachos](Lab/Lab0_BuildNachos)|Setup 32bit cross compile dev. env.
 Lab 1|[Thread Mechanism](Lab/Lab1_ThreadMechanism/README.md)|Multi-thread management
 Lab 2|[Thread Scheduling](Lab/Lab2_ThreadScheduling/README.md)|CPU scheduling
+Lab 3|[Synchronization Mechanism](Lab/Lab3_SynchronizationMechanism/README.md)|Concurrency, mutex lock and semaphore
 
-> [quick start with docker](Lab/Lab0_BuildNachos/DevEnvironment.md#Use-Docker-with-32bit-image)
+> [**Quick start with docker!! (recommend)**](Lab/Lab0_BuildNachos/DevEnvironment.md#Use-Docker-with-32bit-image)
 
 ### XV6 Source Code Reading
 
@@ -40,6 +41,8 @@ Lab 2|[Thread Scheduling](Lab/Lab2_ThreadScheduling/README.md)|CPU scheduling
 
 * Modern Operating System 4ed.
 * Operating System Concepts 9ed.
+* Advanced Programming in the UNIX Environment 3ed.
+  * [pdf](http://www.codeman.net/wp-content/uploads/2014/04/APUE-3rd.pdf)
 
 ### MOOCs
 
