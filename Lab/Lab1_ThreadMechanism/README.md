@@ -4,6 +4,36 @@
 
 > Difference between Linux PCB and Nachos mechanism
 
+* Linux has only concept of Process and Nachos has only Thread. (as scheduling unit)
+
+### Linux
+
+Basically defined in [include/linux/sched.h](https://github.com/torvalds/linux/blob/master/include/linux/sched.h)
+
+The `task_struct` (process descriptor), is an element in the task list.
+
+* Open files
+* Pending signals
+* Internal kernel data
+* Processor state
+* Memory address space with one or more memory mappings
+* Thread(s) of execution
+  * Program counter
+  * Process stack
+  * Set of processor registers
+* Data section containing global variables
+* Program code (text section)
+
+### Nachos
+
+That is the `class Thread`. In initial status, Nachos Thread only contain the following information.
+
+* `int* stackTop; // the current stack pointer`
+* `void *machineState[MachineStateSize]; // all registers except for stackTop`
+* `int* stack; // Bottom of the stack`
+* `ThreadStatus status; // ready, running or blocked`
+* `char* name;`
+
 ## Exercise 2: Trace source code
 
 > Read the following code, understand current Nachos thread mechanism
@@ -12,6 +42,20 @@
 > * `code/threads/threadtest.cc`
 > * `code/threads/thread.h`
 > * `code/threads/thread.cc`
+
+Nachos Thread has 4 states (as `enum ThreadStatus`)
+
+* JUST_CREATED
+* RUNNING
+* READY
+* BLOCKED
+
+And default operations
+
+* `void Fork(VoidFunctionPtr func, void *arg); // Make thread run (*func)(arg)`
+* `void Yield(); // Relinquish the CPU if any other thread is runnable`
+* `void Sleep(); // Put the thread to sleep and relinquish the processor`
+* `void Finish(); // The thread is done executing`
 
 ## Exercise 3: Expand Thread data structure
 
@@ -389,3 +433,7 @@ As an exception, when an extern variable is declared with initialization, it is 
 * [CSDN - 線程機制實習報告_Nachos Lab1](https://blog.csdn.net/superli90/article/details/29369909)
 
 - [CSDN 操作系統課程設計 -nachos- lab-new1](https://blog.csdn.net/wangshang4133/article/details/78627714)
+
+### Article
+
+* [Shichao's Notes - Chapter 3. Process Management - The Process](https://notes.shichao.io/lkd/ch3/#the-process)
