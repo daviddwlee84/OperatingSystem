@@ -258,6 +258,57 @@ Lab2Exercise3_2()
 }
 
 //----------------------------------------------------------------------
+// ThreadWithTicks
+//  Re-enable the interrupt to invoke OnTick() make system time moving forward
+//----------------------------------------------------------------------
+
+void
+ThreadWithTicks(int runningTime)
+{
+    int num;
+    
+    for (num = 0; num < runningTime * SystemTick; num++) {
+        printf("*** thread with running time %d looped %d times (stats->totalTicks: %d)\n", runningTime, num+1, stats->totalTicks);
+        interrupt->OneTick(); // make system time moving forward (advance simulated time)
+        // Switch interrupt on and off to invoke OneTick() (not necessary...)
+        // interrupt->SetLevel(IntOn);
+        // interrupt->SetLevel(IntOff);
+    }
+    currentThread->Finish();
+}
+
+//----------------------------------------------------------------------
+// Lab2 Challenge Round Robin
+// 	Fork some Thread with different priority
+//  and observe if the lower one will take over the CPU
+//----------------------------------------------------------------------
+
+void
+Lab2ChallengeRR()
+{
+    DEBUG('t', "Entering Lab2ChallengeRR");
+
+    printf("\nSystem initial ticks:\tsystem=%d, user=%d, total=%d\n", stats->systemTicks, stats->userTicks, stats->totalTicks);
+
+    Thread *t1 = new Thread("7");
+    Thread *t2 = new Thread("2");
+    Thread *t3 = new Thread("5");
+
+    printf("\nAfter new Thread ticks:\tsystem=%d, user=%d, total=%d\n", stats->systemTicks, stats->userTicks, stats->totalTicks);
+
+    t1->Fork(ThreadWithTicks, (void*)7);
+    t2->Fork(ThreadWithTicks, (void*)2);
+    t3->Fork(ThreadWithTicks, (void*)5);
+
+    printf("\nAfter 3 fork() ticks:\tsystem=%d, user=%d, total=%d\n\n", stats->systemTicks, stats->userTicks, stats->totalTicks);
+
+    // update the lastSwitchTick
+    // (according to previous test, it will start from 50)
+    scheduler->lastSwitchTick = stats->totalTicks;
+    currentThread->Yield(); // Yield the main thread
+}
+
+//----------------------------------------------------------------------
 // ThreadTest
 // 	Invoke a test routine.
 //----------------------------------------------------------------------
@@ -288,6 +339,11 @@ ThreadTest()
     case 6:
         printf("Lab2 Exercise3-2:\n");
         Lab2Exercise3_2();
+        break;
+    case 7:
+        printf("Lab2 Challenge RR:\n");
+        printf("(don't forget to add `-rr` argument to activate timer)\n");
+        Lab2ChallengeRR();
         break;
     default:
         printf("No test specified.\n");

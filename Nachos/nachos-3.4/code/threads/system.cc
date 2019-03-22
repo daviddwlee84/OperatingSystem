@@ -85,6 +85,8 @@ Initialize(int argc, char **argv)
     char* debugArgs = "";
     bool randomYield = FALSE;
 
+    bool roundRobin = FALSE; // Lab2: Round robin
+
     // Lab1: Initialize thread variable
     for (int i = 0; i < MAX_THREAD_NUM; i++) {
         tid_flag[i] = FALSE;
@@ -117,6 +119,10 @@ Initialize(int argc, char **argv)
 						// number generator
 	    randomYield = TRUE;
 	    argCount = 2;
+	} else if (!strcmp(*argv, "-rr")) { // Lab2: activate RR timer
+	    ASSERT(argc > 1);
+	    roundRobin = TRUE;
+	    argCount = 2;
 	}
 #ifdef USER_PROGRAM
 	if (!strcmp(*argv, "-s"))
@@ -145,6 +151,9 @@ Initialize(int argc, char **argv)
     scheduler = new Scheduler();		// initialize the ready queue
     if (randomYield)				// start the timer (if needed)
 	timer = new Timer(TimerInterruptHandler, 0, randomYield);
+
+    if (roundRobin) // Lab2: start the RR timer
+        timer = new Timer(RRHandler, 0, FALSE);
 
     threadToBeDestroyed = NULL;
 
