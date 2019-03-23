@@ -263,6 +263,16 @@ case 8:
 > It may caused by you declare a struct pointer and then you access it.
 > You should declare a struct normally. And pass it with `&` if you wan't to pass in address.
 
+### Warning deprecated conversion from string constant to ‘char*’
+
+> So many warning message makes me feel annoying..
+
+* [How to get rid of `deprecated conversion from string constant to ‘char*’` warnings in GCC?](https://stackoverflow.com/questions/59670/how-to-get-rid-of-deprecated-conversion-from-string-constant-to-char-warnin)
+
+1. Passing `-Wno-write-strings` to gcc and g++
+    > I've add it in `Makefile.common` in CFLAGS
+2. Use `char const *` as the type instead of `char*`
+
 ## Resources
 
 * [Wiki - Concurrency (computer science)](https://en.wikipedia.org/wiki/Concurrency_(computer_science))
