@@ -13,6 +13,9 @@ Nachos/nachos-3.4/code/bin/coff2noff
 Nachos/nachos-3.4/code/bin/disassemble
 Nachos/nachos-3.4/code/bin/out
 
+# VS Code
+.vscode
+
 # Prerequisites
 *.d
 

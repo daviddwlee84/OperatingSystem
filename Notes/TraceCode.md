@@ -9,6 +9,10 @@
 - `*`: search same word
 - `n`/`N`: next/previous one
 
+* [Stackoverflow - Jump to function definition in vim](https://stackoverflow.com/questions/635770/jump-to-function-definition-in-vim)
+* [Vim Tips Wiki - Go to definition using g](https://vim.fandom.com/wiki/Go_to_definition_using_g)
+* [Stackoverflow - How to jump to the beginning of the current function body in Vim?](https://stackoverflow.com/questions/2109503/how-to-jump-to-the-beginning-of-the-current-function-body-in-vim)
+
 ### Ctags
 
 > this support *function* and *symbol*
@@ -38,6 +42,10 @@ In VIM you can use the key combination
 
 * taglist
 * [tagbar](https://github.com/majutsushi/tagbar)
+* Ctrlp
+
+- [Make Your Vim Smarter Using Ctrlp and Ctags](https://medium.freecodecamp.org/make-your-vim-smarter-using-ctrlp-and-ctags-846fc12178a4)
+- [Vim and Ctags](https://andrew.stwrt.ca/posts/vim-ctags/)
 
 ## Grep
 
@@ -48,3 +56,9 @@ grep -inr keyword *
 * `-i`: case-insensitive
 * `-n`: prefix output with line numbers
 * `-r`: recurse subdirectories
+
+### With find
+
+```sh
+find . -name *.c | xargs grep -rn keyword
+```
