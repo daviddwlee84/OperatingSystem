@@ -40,6 +40,8 @@ Long int size is 8 bytes long!
 
 ## Use Docker with 32bit image
 
+### Building
+
 Build the clean version given by TA
 
 ```sh
@@ -57,13 +59,15 @@ bash build_modified_nachos.sh
 ./build_modified_nachos.sh 0.1.1
 ```
 
-Build only the specific subdirectory
+Build only the specific subdirectory (Recommend)
 
 ```sh
 # build threads for example (use any subdirectory name under nachos-3.4/code/)
 ./build_subdir_nachos.sh threads
 # the outcome image will be nachos_<subdir>:latest
 ```
+
+### Running
 
 Running example
 
@@ -98,6 +102,14 @@ Paging: faults 0
 Network I/O: packets received 0, sent 0
 
 Cleaning up...
+```
+
+GDB debugging
+
+```sh
+# Example of debugging threads/nachos built by `./build_subdir_nachos.sh threads`
+$ docker run -it nachos_threads gdb nachos/nachos-3.4/code/threads/nachos
+(gdb) run -d t -q 1
 ```
 
 ### References

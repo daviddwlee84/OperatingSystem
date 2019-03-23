@@ -6,6 +6,7 @@ RUN apt update && apt install -y \
     ed \
     csh \
     build-essential \
+    gdb \
     && rm -rf /var/lib/apt/lists/*
 # Copy local files into image
 COPY nachos /nachos

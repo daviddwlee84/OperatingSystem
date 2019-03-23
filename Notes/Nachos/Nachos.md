@@ -11,6 +11,56 @@ Not Another Completely Heuristic Operating System, or Nachos, is instructional s
 * `nachos`
 * `coff2noff`: converting a COFF (Common Object File Format) file to a NOFF file (Nachos Object File Format)
 
+## Debugging Nachos
+
+* [**Debugging Nachos**](https://www.student.cs.uwaterloo.ca/~cs350/common/debug.html)
+
+### Internal Debugging in Nachos
+
+#### The Trace Facility
+
+The `-d` argument
+
+```sh
+nachos -d t
+```
+
+`code/lib/debug.h` (does not exist in current version Nachos code, but the flags are the same)
+
+```c
+// The pre-defined debugging flags are:
+
+const char dbgAll = '+';		// turn on all debug messages
+const char dbgThread = 't';		// threads
+const char dbgSynch = 's';		// locks, semaphores, condition vars
+const char dbgInt = 'i'; 		// interrupt emulation
+const char dbgMach = 'm'; 		// machine emulation (USER_PROGRAM)
+const char dbgDisk = 'd'; 		// disk emulation (FILESYS)
+const char dbgFile = 'f'; 		// file system (FILESYS)
+const char dbgAddr = 'a'; 		// address spaces (USER_PROGRAM)
+const char dbgNet = 'n'; 		// network emulation (NETWORK)
+```
+
+> I've add `c` for (random) Context Switch used in `threads/system.cc`.
+
+#### Single Stepping
+
+The `-s` argument
+
+#### Assertions
+
+```c
+ASSERT()
+```
+
+### External Debugger
+
+#### Using GDB with Nachos
+
+```sh
+gdb nachos
+```
+
 ## Links
 
 * [**Washington Nachos (Official Website)**](https://homes.cs.washington.edu/~tom/nachos/)
