@@ -97,13 +97,72 @@ Semaphore::V()
     (void) interrupt->SetLevel(oldLevel);
 }
 
+// Lab3: Mutex Lock and Condition
 // Dummy functions -- so we can compile our later assignments 
 // Note -- without a correct implementation of Condition::Wait(), 
 // the test case in the network assignment won't work!
-Lock::Lock(char* debugName) {}
-Lock::~Lock() {}
-void Lock::Acquire() {}
-void Lock::Release() {}
+
+//----------------------------------------------------------------------
+// Lock::Lock
+// 	Initialize a lock, so that it can be used for synchronization.
+//
+//	"debugName" is an arbitrary name, useful for debugging.
+//----------------------------------------------------------------------
+Lock::Lock(char* debugName)
+{
+    name = debugName;
+    semaphore = new Semaphore("Lock", 1);
+}
+
+//----------------------------------------------------------------------
+// Lock::Lock
+// 	De-allocate lock, when no longer needed.  Assume no one
+//	is still waiting on the lock!
+//----------------------------------------------------------------------
+Lock::~Lock()
+{
+    delete semaphore;
+}
+
+//----------------------------------------------------------------------
+// Lock::Acquire
+// 	Acquire Mutex Lock.
+//	* When lock is BUSY, enter SLEEP state. (if loop and wait => spinlock)
+//	* When lock is FREE, current Thread get lock and keep running.
+//----------------------------------------------------------------------
+void
+Lock::Acquire()
+{
+    DEBUG('s', "Lock \"%s\" Acquired by Thread \"%s\"\n", name, currentThread->getName());
+    semaphore->P();
+    holderThread = currentThread;
+}
+
+//----------------------------------------------------------------------
+// Lock::Release
+// 	Release Mutex Lock.
+//  (Note: Only the Thread which own this lock can release lock)
+//	Set lock status to FREE. If any other Thread is waiting this lock,
+//  wake one of them up, enter READY state.
+//----------------------------------------------------------------------
+void
+Lock::Release()
+{
+    DEBUG('s', "Lock \"%s\" Released by Thread \"%s\"\n", name, currentThread->getName());
+    // make sure the owner of this lock is currentThread
+    ASSERT(this->isHeldByCurrentThread());
+    holderThread = NULL;
+    semaphore->V();
+}
+
+//----------------------------------------------------------------------
+// Lock::isHeldByCurrentThread
+//  true if the current thread holds this lock.
+//----------------------------------------------------------------------
+bool Lock::isHeldByCurrentThread()
+{
+    return currentThread == holderThread;
+}
 
 Condition::Condition(char* debugName) { }
 Condition::~Condition() { }

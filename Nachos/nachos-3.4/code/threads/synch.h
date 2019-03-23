@@ -51,6 +51,9 @@ class Semaphore {
     List *queue;       // threads waiting in P() for the value to be > 0
 };
 
+// Lab3: Lock state (deprecated)
+// enum LockStatus { FREE, BUSY };
+
 // The following class defines a "lock".  A lock can be BUSY or FREE.
 // There are only two operations allowed on a lock: 
 //
@@ -62,7 +65,7 @@ class Semaphore {
 // In addition, by convention, only the thread that acquired the lock
 // may release it.  As with semaphores, you can't read the lock value
 // (because the value might change immediately after you read it).  
-
+// Lab3: Mutex Lock
 class Lock {
   public:
     Lock(char* debugName);  		// initialize lock to be FREE
@@ -80,6 +83,9 @@ class Lock {
   private:
     char* name;				// for debugging
     // plus some other stuff you'll need to define
+    // LockStatus status; // Lock status (deprecated)
+    Thread* holderThread; // Thread which is holding this lock
+    Semaphore* semaphore; // Use semaphore to implement lock
 };
 
 // The following class defines a "condition variable".  A condition
