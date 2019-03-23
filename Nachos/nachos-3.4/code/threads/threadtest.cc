@@ -12,6 +12,7 @@
 #include "copyright.h"
 #include "system.h"
 #include "elevatortest.h"
+#include "synch.h" // Lab3 for Lock
 
 // testnum is set in main.cc
 int testnum = 1;
@@ -309,6 +310,173 @@ Lab2ChallengeRR()
 }
 
 //----------------------------------------------------------------------
+// Product
+//  Product with value
+//----------------------------------------------------------------------
+
+typedef struct PRODUCT {
+    int value;
+} product;
+
+//----------------------------------------------------------------------
+// Bounded buffer
+//  Condumer must wait if the buffer is empty,
+//  and the producer must wait if the buffer is full
+//  (no malloc in Nachos?! so use define)
+//----------------------------------------------------------------------
+
+#define BUFFER_SIZE 10
+
+class buffer {
+    public:
+        buffer() {
+            fillCount = new Semaphore("Fill Count", 0);
+            emptyCount = new Semaphore("Empty Count", BUFFER_SIZE);
+            buffer_mutex = new Lock("Buffer mutex");
+            count = 0;
+        };
+        ~buffer() {
+            delete list;
+        }
+        void putItemIntoBuffer(product* item) {
+            emptyCount->P(); // down
+            buffer_mutex->Acquire();
+            
+            /* Critical Section */
+            list[count++] = *item;
+            /********************/
+
+            buffer_mutex->Release();
+            fillCount->V(); // up
+        };
+        product* removeItemFromBuffer() {
+            fillCount->P(); // down
+            buffer_mutex->Acquire();
+
+            /* Critical Section */
+            product* item = &list[count-- -1];
+            /********************/
+
+            buffer_mutex->Release();
+            emptyCount->V(); // up
+
+            return item;
+        };
+        void printBuffer() {
+            printf("Buffer: [", BUFFER_SIZE, count);
+            int i;
+            for (i = 0; i < count; i++) {
+                printf("%d, ", list[i].value);
+            }
+            for (; i < BUFFER_SIZE; i++) {
+                printf("__, ");
+            }
+            printf("]\n");
+        }
+    private:
+        int count;
+        Lock* buffer_mutex;
+        Semaphore* fillCount;
+        Semaphore* emptyCount;
+        product list[BUFFER_SIZE];
+} *shared_buffer;
+
+//----------------------------------------------------------------------
+// Produce Item
+//  Generate prodoct with value
+//----------------------------------------------------------------------
+
+product*
+produceItem(int value)
+{
+    printf("Producing item with value %d!!\n", value);
+    product item;
+    item.value = value;
+    return &item;
+}
+
+//----------------------------------------------------------------------
+// Consume Item
+//  Delete product
+//----------------------------------------------------------------------
+
+void
+consumeItem(product* item)
+{
+    printf("Consuming item with value %d!!\n", item->value);
+    // delete item; // Use it when using linked list, or it will get error
+}
+
+//----------------------------------------------------------------------
+// Producer
+//  generate data, put it into the buffer, and start again. 
+//----------------------------------------------------------------------
+
+void
+ProducerThread(int iterNum)
+{
+    for (int i = 0; i < iterNum; i++) {
+        printf("## %s ##: ", currentThread->getName());
+        product* item = produceItem(i);
+        shared_buffer->putItemIntoBuffer(item);
+        // shared_buffer->printBuffer();
+
+        interrupt->OneTick();
+    }
+}
+
+//----------------------------------------------------------------------
+// Consumer
+//  consuming the data, one piece at a time.
+//----------------------------------------------------------------------
+
+void
+ConsumerThread(int iterNum)
+{
+    for (int i = 0; i < iterNum; i++) {
+        printf("$$ %s $$: ", currentThread->getName());
+        product* item = shared_buffer->removeItemFromBuffer();
+        // shared_buffer->printBuffer();
+        consumeItem(item);
+
+        interrupt->OneTick();
+    }
+}
+
+//----------------------------------------------------------------------
+// Lab3 Exercise 4 Producer-consumer problem (Bounded-buffer problem)
+//  The problem describes two processes, the producer and the consumer,
+//  who share a common, fixed-size buffer used as a queue.
+//  The producer's job is to generate data, put it into the buffer,
+//  and start again. 
+//  At the same time, the consumer is consuming the data
+//  (i.e., removing it from the buffer), one piece at a time.
+//  The problem is to make sure that the producer won't try to add data
+//  into the buffer if it's full and that the consumer won't try to
+//  remove data from an empty buffer.
+//----------------------------------------------------------------------
+
+void
+Lab3ProducerConsumer()
+{
+    DEBUG('t', "Entering Lab3ProducerConsumer");
+
+    shared_buffer = new buffer();
+
+    Thread *producer1 = new Thread("Producer 1");
+    Thread *producer2 = new Thread("Producer 2");
+    Thread *consumer1 = new Thread("Consumer 1");
+    Thread *consumer2 = new Thread("Consumer 2");
+
+    producer1->Fork(ProducerThread, (void*)8);
+    consumer1->Fork(ConsumerThread, (void*)6);
+    consumer2->Fork(ConsumerThread, (void*)9);
+    producer2->Fork(ProducerThread, (void*)7);
+
+    currentThread->Yield(); // Yield the main thread
+}
+
+//----------------------------------------------------------------------
 // ThreadTest
 // 	Invoke a test routine.
 //----------------------------------------------------------------------
@@ -316,6 +484,9 @@ Lab2ChallengeRR()
 void
 ThreadTest()
 {
+    // Lab3 Data structure test
+    // buffer* test_buffer = new buffer();
+
     switch (testnum) {
     case 1:
         ThreadTest1();
@@ -344,6 +515,30 @@ ThreadTest()
         printf("Lab2 Challenge RR:\n");
         printf("(don't forget to add `-rr` argument to activate timer)\n");
         Lab2ChallengeRR();
+        break;
+    case 8:
+        printf("Lab3 Exercise4: Producer-consumer problem (Bounded-buffer problem)\n");
+        printf("(add `-d c -rs` argument to show \"Context Switch\" and activate random timer)\n");
+        Lab3ProducerConsumer();
+
+        /* Lab3 Data Structure Test
+
+        // Test PRODUCT struct
+        product item;
+        item.value = 87;
+        struct PRODUCT *new_item;
+        new_item = &item;
+        printf("%d\n\n", new_item->value);
+
+        // Test buffer class
+        item.value = 78;
+        // buffer* test_buffer = new buffer();
+        test_buffer->putItemIntoBuffer(&item);
+        test_buffer->printBuffer();
+        new_item = test_buffer->removeItemFromBuffer();
+        printf("%d\n\n", new_item->value);
+
+        */
         break;
     default:
         printf("No test specified.\n");

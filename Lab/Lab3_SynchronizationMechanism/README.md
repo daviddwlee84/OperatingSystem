@@ -176,9 +176,206 @@ And the test of `Lock` I'll using Exercise 4 as an example.
 
 ### Producer-consumer Problem (Bounded-buffer Problem)
 
-#### Infrastructure
+#### Infrastructure - The Bounded-buffer and Product
+
+The shared memory between Threads, the buffer class object called `shared_buffer`.
+
+```cpp
+//----------------------------------------------------------------------
+// Bounded buffer
+//  Condumer must wait if the buffer is empty,
+//  and the producer must wait if the buffer is full
+//  (no malloc in Nachos?! so use define)
+//----------------------------------------------------------------------
+
+#define BUFFER_SIZE 10
+
+class buffer {
+    public:
+        buffer() {
+            fillCount = new Semaphore("Fill Count", 0);
+            emptyCount = new Semaphore("Empty Count", BUFFER_SIZE);
+            buffer_mutex = new Lock("Buffer mutex");
+            count = 0;
+        };
+        ~buffer() {
+            delete list;
+        }
+        void putItemIntoBuffer(product* item) {
+            emptyCount->P(); // down
+            buffer_mutex->Acquire();
+
+            /* Critical Section */
+            list[count++] = *item;
+            /********************/
+
+            buffer_mutex->Release();
+            fillCount->V(); // up
+        };
+        product* removeItemFromBuffer() {
+            fillCount->P(); // down
+            buffer_mutex->Acquire();
+
+            /* Critical Section */
+            product* item = &list[count-- -1];
+            /********************/
+
+            buffer_mutex->Release();
+            emptyCount->V(); // up
+
+            return item;
+        };
+        void printBuffer() {
+            printf("Buffer: [", BUFFER_SIZE, count);
+            int i;
+            for (i = 0; i < count; i++) {
+                printf("%d, ", list[i].value);
+            }
+            for (; i < BUFFER_SIZE; i++) {
+                printf("__, ");
+            }
+            printf("]\n");
+        }
+    private:
+        int count;
+        Lock* buffer_mutex;
+        Semaphore* fillCount;
+        Semaphore* emptyCount;
+        product list[BUFFER_SIZE];
+} *shared_buffer;
+```
+
+Product is simply a struct with a value.
+
+```cpp
+//----------------------------------------------------------------------
+// Product
+//  Product with value
+//----------------------------------------------------------------------
+
+typedef struct PRODUCT {
+    int value;
+} product;
+```
 
 #### Building the Problem
+
+I've invoked `interrupt->OneTick()` to make system time moving forward.
+So the random context switch (`-rs`) will work.
+
+```cpp
+//----------------------------------------------------------------------
+// Produce Item
+//  Generate prodoct with value
+//----------------------------------------------------------------------
+
+product*
+produceItem(int value)
+{
+    printf("Producing item with value %d!!\n", value);
+    product item;
+    item.value = value;
+    return &item;
+}
+
+//----------------------------------------------------------------------
+// Consume Item
+//  Delete product
+//----------------------------------------------------------------------
+
+void
+consumeItem(product* item)
+{
+    printf("Consuming item with value %d!!\n", item->value);
+}
+
+//----------------------------------------------------------------------
+// Producer
+//  generate data, put it into the buffer, and start again. 
+//----------------------------------------------------------------------
+
+void
+ProducerThread(int iterNum)
+{
+    for (int i = 0; i < iterNum; i++) {
+        printf("## %s ##: ", currentThread->getName());
+        product* item = produceItem(i);
+        shared_buffer->putItemIntoBuffer(item);
+
+        interrupt->OneTick();
+    }
+}
+
+//----------------------------------------------------------------------
+// Consumer
+//  consuming the data, one piece at a time.
+//----------------------------------------------------------------------
+
+void
+ConsumerThread(int iterNum)
+{
+    for (int i = 0; i < iterNum; i++) {
+        printf("$$ %s $$: ", currentThread->getName());
+        product* item = shared_buffer->removeItemFromBuffer();
+        consumeItem(item);
+
+        interrupt->OneTick();
+    }
+}
+```
+
+> Notes:
+>
+> 1. Because the mutex and semaphore is built in buffer. So `printBuffer()` may be interrupt and make the result much mess.
+> 2. Only delete item when using linked list.
+
+#### Testing the Problem
+
+I've create 2 producer and 2 consumer. Each has will produce/consume the following amount of items.
+
+* `Producer 1`: 8
+* `Producer 2`: 7
+* `Consumer 1`: 6
+* `Consumer 2`: 9
+
+And the calling order is `Producer 1` -> `Consumer 1` -> `Consumer 2` -> `Producer 2`
+
+Add the following test in `threads/threadtest.cc` and as case 8.
+
+```cpp
+//----------------------------------------------------------------------
+// Lab3 Exercise 4 Producer-consumer problem (Bounded-buffer problem)
+//  The problem describes two processes, the producer and the consumer,
+//  who share a common, fixed-size buffer used as a queue.
+//  The producer's job is to generate data, put it into the buffer,
+//  and start again. 
+//  At the same time, the consumer is consuming the data
+//  (i.e., removing it from the buffer), one piece at a time.
+//  The problem is to make sure that the producer won't try to add data
+//  into the buffer if it's full and that the consumer won't try to
+//  remove data from an empty buffer.
+//----------------------------------------------------------------------
+
+void
+Lab3ProducerConsumer()
+{
+    DEBUG('t', "Entering Lab3ProducerConsumer");
+
+    shared_buffer = new buffer();
+
+    Thread *producer1 = new Thread("Producer 1");
+    Thread *producer2 = new Thread("Producer 2");
+    Thread *consumer1 = new Thread("Consumer 1");
+    Thread *consumer2 = new Thread("Consumer 2");
+
+    producer1->Fork(ProducerThread, (void*)8);
+    consumer1->Fork(ConsumerThread, (void*)6);
+    consumer2->Fork(ConsumerThread, (void*)9);
+    producer2->Fork(ProducerThread, (void*)7);
+
+    currentThread->Yield(); // Yield the main thread
+}
+```
 
 #### Result
 
@@ -186,6 +383,41 @@ Without random context switch
 
 ```sh
 threads/nachos -q 8
+```
+
+```txt
+Lab3 Exercise4: Producer-consumer problem (Bounded-buffer problem)
+(add `-d c -rs` argument to show "Context Switch" and activate random timer
+## Producer 1 ##: Producing item with value 0!!
+## Producer 1 ##: Producing item with value 1!!
+## Producer 1 ##: Producing item with value 2!!
+## Producer 1 ##: Producing item with value 3!!
+## Producer 1 ##: Producing item with value 4!!
+## Producer 1 ##: Producing item with value 5!!
+## Producer 1 ##: Producing item with value 6!!
+## Producer 1 ##: Producing item with value 7!!
+$$ Consumer 1 $$: Consuming item with value 7!!
+$$ Consumer 1 $$: Consuming item with value 6!!
+$$ Consumer 1 $$: Consuming item with value 5!!
+$$ Consumer 1 $$: Consuming item with value 4!!
+$$ Consumer 1 $$: Consuming item with value 3!!
+$$ Consumer 1 $$: Consuming item with value 2!!
+$$ Consumer 2 $$: Consuming item with value 1!!
+$$ Consumer 2 $$: Consuming item with value 0!!
+$$ Consumer 2 $$: ## Producer 2 ##: Producing item with value 0!!
+## Producer 2 ##: Producing item with value 1!!
+## Producer 2 ##: Producing item with value 2!!
+## Producer 2 ##: Producing item with value 3!!
+## Producer 2 ##: Producing item with value 4!!
+## Producer 2 ##: Producing item with value 5!!
+## Producer 2 ##: Producing item with value 6!!
+Consuming item with value 6!!
+$$ Consumer 2 $$: Consuming item with value 5!!
+$$ Consumer 2 $$: Consuming item with value 4!!
+$$ Consumer 2 $$: Consuming item with value 3!!
+$$ Consumer 2 $$: Consuming item with value 2!!
+$$ Consumer 2 $$: Consuming item with value 1!!
+$$ Consumer 2 $$: Consuming item with value 0!!
 ```
 
 With random context switch
@@ -199,6 +431,55 @@ With random context switch
 
 ```sh
 threads/nachos -d c -rs -q 8
+```
+
+```txt
+Lab3 Exercise4: Producer-consumer problem (Bounded-buffer problem)
+(add `-d c -rs` argument to show "Context Switch" and activate random timer)
+## Producer 1 ##: Producing item with value 0!!
+## Producer 1 ##: Producing item with value 1!!
+## Producer 1 ##: Producing item with value 2!!
+ << random Context Switch (stats->totalTicks = 190) >>
+$$ Consumer 1 $$: Consuming item with value 2!!
+$$ Consumer 1 $$:  << random Context Switch (stats->totalTicks = 280) >>
+$$ Consumer 2 $$: ## Producer 2 ##: Producing item with value 0!!
+## Producer 2 ##: Producing item with value 1!!
+## Producer 2 ##: Producing item with value 2!!
+## Producer 2 ##: Producing item with value 3!!
+ << random Context Switch (stats->totalTicks = 460) >>
+## Producer 1 ##: Producing item with value 3!!
+## Producer 1 ##: Producing item with value 4!!
+ << random Context Switch (stats->totalTicks = 580) >>
+Consuming item with value 0!!
+$$ Consumer 1 $$: Consuming item with value 4!!
+$$ Consumer 1 $$: Consuming item with value 3!!
+$$ Consumer 1 $$: Consuming item with value 2!!
+$$ Consumer 1 $$:  << random Context Switch (stats->totalTicks = 780) >>
+## Producer 1 ##: Producing item with value 5!!
+Consuming item with value 1!!
+Consuming item with value 0!!
+ << random Context Switch (stats->totalTicks = 920) >>
+## Producer 2 ##: Producing item with value 4!!
+## Producer 2 ##: Producing item with value 5!!
+## Producer 2 ##: Producing item with value 6!!
+ << random Context Switch (stats->totalTicks = 1110) >>
+$$ Consumer 2 $$: Consuming item with value 6!!
+$$ Consumer 2 $$:  << random Context Switch (stats->totalTicks = 1210) >>
+## Producer 1 ##: Producing item with value 6!!
+ << random Context Switch (stats->totalTicks = 1260) >>
+Consuming item with value 5!!
+ << random Context Switch (stats->totalTicks = 1290) >>
+## Producer 1 ##: Producing item with value 7!!
+$$ Consumer 2 $$: Consuming item with value 7!!
+$$ Consumer 2 $$:  << random Context Switch (stats->totalTicks = 1460) >>
+ << random Context Switch (stats->totalTicks = 1490) >>
+Consuming item with value 6!!
+$$ Consumer 2 $$: Consuming item with value 5!!
+$$ Consumer 2 $$:  << random Context Switch (stats->totalTicks = 1590) >>
+Consuming item with value 4!!
+$$ Consumer 2 $$:  << random Context Switch (stats->totalTicks = 1650) >>
+Consuming item with value 3!!
+$$ Consumer 2 $$: Consuming item with value 0!!
 ```
 
 ## Challenge 1: Implement Barrier

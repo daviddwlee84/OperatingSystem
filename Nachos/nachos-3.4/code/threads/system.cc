@@ -64,6 +64,7 @@ extern void Cleanup();
 static void
 TimerInterruptHandler(int dummy)
 {
+    DEBUG('c', " << random Context Switch (stats->totalTicks = %d) >>\n", stats->totalTicks);
     if (interrupt->getStatus() != IdleMode)
 	interrupt->YieldOnReturn();
 }
