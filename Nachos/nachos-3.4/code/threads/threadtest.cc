@@ -146,7 +146,8 @@ TS()
 void
 CustomThreadFunc(int which)
 {
-    printf("*** current thread (uid=%d, tid=%d, pri=%d name=%s) => ", currentThread->getUserId(), currentThread->getThreadId(), currentThread->getPriority(), currentThread->getName());
+    printf("*** current thread (uid=%d, tid=%d, pri=%d, name=%s) => ", currentThread->getUserId(), currentThread->getThreadId(), currentThread->getPriority(), currentThread->getName());
+    IntStatus oldLevel; // for case 1 sleep (avoid cross initialization problem of switch case)
     switch (which)
     {
         case 0:
@@ -157,7 +158,11 @@ CustomThreadFunc(int which)
             break;
         case 1:
             printf("Sleep\n");
+            // line 246, file "../threads/thread.cc"
+            // Assert interrupt is off
+            oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
             currentThread->Sleep();
+            (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
             break;
         case 2:
             printf("Finish\n");
@@ -185,11 +190,10 @@ Lab1Exercise4_2()
     Thread *t3 = new Thread("fork 3");
 
     t1->Fork(CustomThreadFunc, (void*)0);
-    // t2->Fork(CustomThreadFunc, (void*)1);
+    t2->Fork(CustomThreadFunc, (void*)1);
     t3->Fork(CustomThreadFunc, (void*)2);
 
     Thread *t4 = new Thread("fork 4");
-    t4->Fork(CustomThreadFunc, (void*)0);
 
     CustomThreadFunc(0); // Yield the current thread (i.e. main which is defined in system.cc)
 
@@ -444,7 +448,7 @@ ConsumerThread(int iterNum)
 }
 
 //----------------------------------------------------------------------
-// Lab3 Exercise 4 Producer-consumer problem (Bounded-buffer problem)
+// Lab3 Exercise4 Producer-consumer problem (Bounded-buffer problem)
 //  The problem describes two processes, the producer and the consumer,
 //  who share a common, fixed-size buffer used as a queue.
 //  The producer's job is to generate data, put it into the buffer,

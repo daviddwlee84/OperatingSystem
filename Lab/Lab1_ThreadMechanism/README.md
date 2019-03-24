@@ -344,16 +344,21 @@ Add the following funciton in `threads/threadtest.cc` and don't forget to add `L
 void
 CustomThreadFunc(int which)
 {
-    printf("*** current thread (uid=%d, tid=%d, name=%s) => ", currentThread->getUserId(), currentThread->getThreadId(), currentThread->getName());
+    printf("*** current thread (uid=%d, tid=%d, pri=%d name=%s) => ", currentThread->getUserId(), currentThread->getThreadId(), currentThread->getPriority(), currentThread->getName());
+    IntStatus oldLevel; // for case 1 sleep (avoid cross initialization problem of switch case)
     switch (which)
     {
         case 0:
             printf("Yield\n");
+            scheduler->Print();
+            printf("\n\n");
             currentThread->Yield();
             break;
         case 1:
             printf("Sleep\n");
+            oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
             currentThread->Sleep();
+            (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
             break;
         case 2:
             printf("Finish\n");
@@ -383,11 +388,10 @@ Lab1Exercise4_2()
     Thread *t3 = new Thread("fork 3");
 
     t1->Fork(CustomThreadFunc, (void*)0);
-    // t2->Fork(CustomThreadFunc, (void*)1);
+    t2->Fork(CustomThreadFunc, (void*)1);
     t3->Fork(CustomThreadFunc, (void*)2);
 
     Thread *t4 = new Thread("fork 4");
-    t4->Fork(CustomThreadFunc, (void*)0);
 
     CustomThreadFunc(0); // Yield the current thread (i.e. main which is defined in system.cc)
 
@@ -402,16 +406,20 @@ $ threads/nachos -q 4
 Lab1 Exercise4-2:
 *** current thread (uid=0, tid=0, name=main) => Yield
 *** current thread (uid=0, tid=1, name=fork 1) => Yield
+*** current thread (uid=0, tid=2, name=fork 2) => Sleep
 *** current thread (uid=0, tid=3, name=fork 3) => Finish
-*** current thread (uid=0, tid=4, name=fork 4) => Yield
 --- Calling TS command ---
 UID     TID     NAME    STATUS
 0       0       main    RUNNING
 0       1       fork 1  READY
-0       2       fork 2  JUST_CREATED
-0       4       fork 4  READY
+0       2       fork 2  BLOCKED
+0       4       fork 4  JUST_CREATED
 --- End of TS command ---
 ```
+
+> Result may be a little bit different because of
+> Lab2 has added the priority to Thread and has shared same funciton.
+> (Thread handler & TS command)
 
 ## Trouble Shooting
 

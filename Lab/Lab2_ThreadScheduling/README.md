@@ -230,11 +230,11 @@ Result
 ```txt
 $ threads/nachos -q 6
 Lab2 Exercise3-2:
-*** current thread (uid=0, tid=0, pri=0 name=main) => Yield
+*** current thread (uid=0, tid=0, pri=0, name=main) => Yield
 Ready list contents:
 lowest, lower, highest,
 
-*** current thread (uid=0, tid=3, pri=38 name=lowest) => Yield
+*** current thread (uid=0, tid=3, pri=38, name=lowest) => Yield
 Ready list contents:
 main, lower, highest,
 
@@ -246,11 +246,11 @@ UID     TID     NAME    PRI     STATUS
 0       3       lowest  38      READY
 --- End of TS command ---
 
-*** current thread (uid=0, tid=1, pri=78 name=lower) => Yield
+*** current thread (uid=0, tid=1, pri=78, name=lower) => Yield
 Ready list contents:
 highest,
 
-*** current thread (uid=0, tid=2, pri=87 name=highest) => Yield
+*** current thread (uid=0, tid=2, pri=87, name=highest) => Yield
 Ready list contents:
 lower,
 ```
