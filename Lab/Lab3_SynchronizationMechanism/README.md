@@ -50,34 +50,62 @@ Parameter
 > Either use primitive *sleep* and *wakeup* (notice to disable the system interrupt),
 > or use *Semaphore* as the only *primitive* (then you won't need to handle interrupt by yourself)
 
+Disable interrupt in the beginning and re-enable it in the end to make the
+routine *atomic* or make it become *primitive*.
+
+```c
+// Any implementation of a synchronization routine needs some
+// primitive atomic operation.  We assume Nachos is running on
+// a uniprocessor, and thus atomicity can be provided by
+// turning off interrupts.  While interrupts are disabled, no
+// context switch can occur, and thus the current thread is guaranteed
+// to hold the CPU throughout, until interrupts are reenabled
+
+IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
+(void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
+```
+
+### Pthreads
+
+> Pthreads offers two synchronization mechanism: **mutex** and **condition variable**
+
+* POSIX Threads Programming
+  * [Mutex Variables](https://computing.llnl.gov/tutorials/pthreads/#Mutexes)
+  * [Condition Variables](https://computing.llnl.gov/tutorials/pthreads/#ConditionVariables)
+
+Some of the Pthreads calls relating to mutexes
+
+* `Pthread_mutex_init`: Create a mutex
+* `Pthread_mutex_destroy`: Destroy an existing mutex
+* `Pthread_mutex_lock`: Acquire a lock or block
+* `Pthread_mutex_trylock`: Acquire a lock or fail
+* `Pthread_mutex_unlock`: Release a lock
+
+Some of the Pthreads calls relating to condition variables
+
+* `Pthread_cond_init`: Create a condition variable
+* `Pthread_cond_destroy`: Destroy a condition variable
+* `Pthread_cond_wait` (primary): Block waiting for a signal
+  * Using a WHILE loop instead of an IF statement to check the waited for condition can help deal with several potential problems
+    * If several threads are waiting for the same wake up signal, they will take turns acquiring the mutex, and any one of them can then modify the condition they all waited for.
+    * If the thread received the signal in error due to a program bug.
+    * The Pthreads library is permitted to issue spurious wake ups to a waiting thread without violating the standard.
+* `Pthread_cond_signal` (primary): Signal another thread and wake it up
+* `Pthread_cond_broadcast`: Signal multiple threads and wake all of them
+  * Called when there are multiple threads potentially all blocked and waiting for the same signal
+
+Example
+
+* [Oracle Multithreaded Programming Guide - Chapter 4 Programming with Synchronization Objects](https://docs.oracle.com/cd/E19455-01/806-5257/6je9h032m/index.html)
+  * [Using Mutual Exclusion Locks](https://docs.oracle.com/cd/E19455-01/806-5257/6je9h032p/index.html)
+  * [Using Condition Variables](https://docs.oracle.com/cd/E19455-01/806-5257/6je9h032r/index.html)
+    * [The Producer/Consumer Problem (using both Pthreads mutex and condition variable)](https://docs.oracle.com/cd/E19455-01/806-5257/sync-31/index.html)
+
 ### 3-1 Lock
 
 > The Binary Semaphore with Ownership Concept!
 
-Nachos has a initial template for Lock
-
-```cpp
-class Lock {
-  public:
-    Lock(char* debugName);  		// initialize lock to be FREE
-    ~Lock();				// deallocate lock
-    char* getName() { return name; }	// debugging assist
-
-    void Acquire(); // these are the only operations on a lock
-    void Release(); // they are both *atomic*
-
-    bool isHeldByCurrentThread();	// true if the current thread
-					// holds this lock.  Useful for
-					// checking in Release, and in
-					// Condition variable ops below.
-
-  private:
-    char* name;				// for debugging
-    // plus some other stuff you'll need to define
-};
-```
-
-I use `Semaphore` to implement it.
+Nachos has a initial template for Lock. And I use `Semaphore` to implement it.
 
 It will be much easier because I don't have to handle *interrupt* and *sleeping thread* problem.
 
@@ -124,9 +152,13 @@ has got the Lock successfully.
 void
 Lock::Acquire()
 {
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
+
     DEBUG('s', "Lock \"%s\" Acquired by Thread \"%s\"\n", name, currentThread->getName());
     semaphore->P();
     holderThread = currentThread;
+
+    (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
 }
 ```
 
@@ -148,11 +180,15 @@ Release the Lock only when the `currentThread` is the owner itself.
 void
 Lock::Release()
 {
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
+
     DEBUG('s', "Lock \"%s\" Released by Thread \"%s\"\n", name, currentThread->getName());
     // make sure the owner of this lock is currentThread
     ASSERT(this->isHeldByCurrentThread());
     holderThread = NULL;
     semaphore->V();
+
+    (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
 }
 ```
 
@@ -161,6 +197,123 @@ Other trivial code implementation just checkout `threads/synch.cc`.
 And the test of `Lock` I'll using Exercise 4 as an example.
 
 ### 3-2 Condtion Variable
+
+> Condition variables should be used as a place to wait and be notified.
+> They are not the condition itself and they are not events.
+> The condition is contained in the surrounding programming logic.
+
+Nachos has a initial template for Condition. And I use `Lock` (Exercise 3-1) to implement it.
+
+I've create a *waiting queue* as a private variable.
+
+```cpp
+class Condition {
+  private:
+    List* waitQueue; // Waiting queue for the Thread blocked by this condition
+};
+```
+
+Notes that all the condition operation has a input of `conditionLock`. That's because the Thread which is using the condition must have held the lock.
+
+In addition, when calling `Condition::Wait()`, the lock must be locked. And wait must be wrapped with a loop.
+
+```cpp
+//----------------------------------------------------------------------
+// Condition::Wait
+//  Wait blocks the calling thread until the specified condition is signalled.
+//  This routine should be called while mutex is locked, and it will
+//  automatically release the mutex while it waits.
+//  After signal is received and thread is awakened,
+//  mutex will be automatically locked for use by the thread.
+//  The programmer is then responsible for unlocking mutex when the thread
+//  is finished with it.
+//
+//  "conditionLock" is the lock protecting the use of this condition
+//----------------------------------------------------------------------
+
+void
+Condition::Wait(Lock* conditionLock)
+{
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
+
+    // conditionLock must be held by the currentThread
+    ASSERT(conditionLock->isHeldByCurrentThread())
+    // conditionLock must be locked
+    ASSERT(conditionLock->isLocked());
+
+    waitQueue->Append(currentThread);
+
+    // Release the lock while it waits
+    conditionLock->Release();
+    currentThread->Sleep();
+
+    // Awake by Signal...
+
+    conditionLock->Acquire();
+
+    (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
+}
+```
+
+We have two operation that can wake up the Thread which is waiting for this condition. `Condition::Signal()` to wakeup single Thread; `Condition::Broadcast` to wakeup all the Thread (in waitQueue)
+
+```cpp
+//----------------------------------------------------------------------
+// Condition::Signal
+//  Signal is used to signal (or wake up) another thread which is waiting
+//  on the condition variable. It should be called after mutex is locked,
+//  and must unlock mutex in order for Condition::Wait() routine to complete.
+//
+//  "conditionLock" is the lock protecting the use of this condition
+//----------------------------------------------------------------------
+
+void
+Condition::Signal(Lock* conditionLock)
+{
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
+
+    // conditionLock must be held by the current Thread
+    ASSERT(conditionLock->isHeldByCurrentThread())
+
+    if (!waitQueue->IsEmpty()) {
+        // Putting thread from the front of waitQueue onto ready list
+        Thread* thread = (Thread*) waitQueue->Remove();
+        scheduler->ReadyToRun(thread);
+    }
+
+    (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
+}
+
+//----------------------------------------------------------------------
+// Condition::Broadcast
+//  Wakeup all the threads waiting on this condition.
+//  Brodcast should be used instead of Condition::Signal() if more than
+//  one thread is in a blocking wait state.
+//
+//  "conditionLock" is the lock protecting the use of this condition
+//----------------------------------------------------------------------
+
+void
+Condition::Broadcast(Lock* conditionLock)
+{
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
+
+    // conditionLock must be held by the current Thread
+    ASSERT(conditionLock->isHeldByCurrentThread())
+
+    while (!waitQueue->IsEmpty()) {
+        // Putting all the threads on ready list
+        Thread* thread = (Thread*) waitQueue->Remove();
+        scheduler->ReadyToRun(thread);
+    }
+
+    (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
+}
+```
+
+Other trivial code implementation just checkout `threads/synch.cc`.
+
+And the test of `Lock` I'll using Challenge 1 as an example.
 
 ## Exercise 4: Implement Synchronous Mutual Instance
 
@@ -175,6 +328,8 @@ And the test of `Lock` I'll using Exercise 4 as an example.
 > * [Cigarette smokers problem](https://en.wikipedia.org/wiki/Cigarette_smokers_problem)
 
 ### Producer-consumer Problem (Bounded-buffer Problem)
+
+> Basically followed the pseudocode in Wikipedia.
 
 #### Infrastructure - The Bounded-buffer and Product
 
@@ -487,7 +642,41 @@ $$ Consumer 2 $$: Consuming item with value 0!!
 > You can use synchronization mechanism offered by Nachos (e.g. condition variable) to implement barrier.
 > Such that the program can continue if and only if a certain amount of thread reach the same point.
 
+### Background Knowledge
+
 * [Wiki - Barrier (computer science)](https://en.wikipedia.org/wiki/Barrier_(computer_science))
+* [Latches And Barriers](http://www.modernescpp.com/index.php/latches-and-barriers)
+
+Pthreads
+
+* Pthreads barriers (with prefix `pthread_barrier_`)
+  * `pthread_barrier_destroy`
+  * `pthread_barrier_init`
+  * `pthread_barrier_wait`
+  * `pthread_barrierattr_destroy`
+  * `pthread_barrierattr_getpshared`
+  * `pthread_barrierattr_init`
+  * `pthread_barrierattr_setpshared`
+
+C++ Standard Library
+
+* [`std::latch`](https://en.cppreference.com/w/cpp/experimental/latch)
+  * Unlike `std::barrier` can be decremented by a participating thread more than once.
+* [`std::barrier`](https://en.cppreference.com/w/cpp/experimental/barrier)
+* [`std::flex_barrier`](https://en.cppreference.com/w/cpp/experimental/flex_barrier)
+
+Example using Pthread mutex and condition varialbe
+
+* [angrave/SystemProgramming - Synchronization, Part 6: Implementing a barrier](https://github.com/angrave/SystemProgramming/wiki/Synchronization,-Part-6:-Implementing-a-barrier)
+  * [angrave/SystemProgramming Wiki](https://github.com/angrave/SystemProgramming/wiki)
+
+Example using Pthread barrier
+
+* [angrave/SystemProgramming - Sample program using pthread barriers](https://github.com/angrave/SystemProgramming/wiki/Sample-program-using-pthread-barriers)
+
+### Implementation - The Barrier class
+
+I've imitiate `std::barrier` and build a Barrier class
 
 ## Challenge 2: Read/Write Lock
 
@@ -554,9 +743,20 @@ case 8:
     > I've add it in `Makefile.common` in CFLAGS
 2. Use `char const *` as the type instead of `char*`
 
+### strcat a integer
+
+```c
+char string[STRING_SIZE] = "text "
+char buffer[BUFFER_SIZE];
+sprintf(buffer, "%d", number);
+strcat(string, buffer)
+```
+
 ## Resources
 
 * [Wiki - Concurrency (computer science)](https://en.wikipedia.org/wiki/Concurrency_(computer_science))
+* [Wiki - Monitor (synchronization) - Condition variables](https://en.wikipedia.org/wiki/Monitor_(synchronization)#Condition_variables)
+* [Stackoverflow - When to use pthread condition variables?](https://stackoverflow.com/questions/20772476/when-to-use-pthread-condition-variables)
 
 ### Book
 

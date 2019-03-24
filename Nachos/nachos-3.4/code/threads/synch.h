@@ -40,10 +40,12 @@ class Semaphore {
   public:
     Semaphore(char* debugName, int initialValue);	// set initial value
     ~Semaphore();   					// de-allocate semaphore
-    char* getName() { return name;}			// debugging assist
+    char* getName() { return name; }			// debugging assist
     
     void P();	 // these are the only operations on a semaphore
     void V();	 // they are both *atomic*
+
+    int getValue() { return value; } // get the value (for Lock::isLocked())
     
   private:
     char* name;        // useful for debugging
@@ -79,6 +81,7 @@ class Lock {
 					// holds this lock.  Useful for
 					// checking in Release, and in
 					// Condition variable ops below.
+    bool isLocked() { return !semaphore->getValue(); } // true if it's lock
 
   private:
     char* name;				// for debugging
@@ -138,5 +141,6 @@ class Condition {
   private:
     char* name;
     // plus some other stuff you'll need to define
+    List* waitQueue; // Waiting queue for the Thread blocked by this condition
 };
 #endif // SYNCH_H
