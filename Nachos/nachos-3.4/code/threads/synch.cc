@@ -285,14 +285,14 @@ Condition::Broadcast(Lock* conditionLock)
     // conditionLock must be held by the current Thread
     ASSERT(conditionLock->isHeldByCurrentThread())
 
-    DEBUG('c', "Condition \"%s\" Broadcasting: ", name);
+    DEBUG('b', "Condition \"%s\" Broadcasting: ", name);
     while (!waitQueue->IsEmpty()) {
         // Putting all the threads on ready list
         Thread* thread = (Thread*) waitQueue->Remove();
-        DEBUG('c', "Thread \"%s\", ", thread->getName());
+        DEBUG('b', "Thread \"%s\", ", thread->getName());
         scheduler->ReadyToRun(thread);
     }
-    DEBUG('c', "\n");
+    DEBUG('b', "\n");
 
     (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
 }
@@ -317,7 +317,7 @@ Barrier::Barrier(char* debugName, int num)
 //----------------------------------------------------------------------
 // Barrier::~Barrier
 // 	De-allocate barrier, when no longer needed.  Assume no one
-//	is still waiting on the condition variable!
+//	is still waiting on the barrier!
 //----------------------------------------------------------------------
 
 Barrier::~Barrier()
@@ -341,9 +341,9 @@ Barrier::ArrivedAndWait()
     // Use mutex to ensure that only one thread modifies remain at a time
     mutex->Acquire();
     remain--;
-    DEBUG('c', "Thread %s enter barrier %s with remain=%d\n", currentThread->getName(), name, remain);
+    DEBUG('b', "Thread %s enter barrier %s with remain=%d\n", currentThread->getName(), name, remain);
     if (remain == 0) {
-        DEBUG('c', "Everyone reached the Barrier!!\n");
+        DEBUG('b', "Everyone reached the Barrier!!\n");
         condition->Broadcast(mutex);
         // Reset barrier
         remain = num_threads;
@@ -354,4 +354,92 @@ Barrier::ArrivedAndWait()
     mutex->Release();
 
     (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
+}
+
+//----------------------------------------------------------------------
+// ReaderWriterLock::ReaderWriterLock
+// 	Initialize a reader-writer lock, so that it can be used for synchronization.
+//
+//	"debugName" is an arbitrary name, useful for debugging.
+//  "num" is the number of threads
+//----------------------------------------------------------------------
+
+ReaderWriterLock::ReaderWriterLock(char* debugName)
+{
+    name = debugName;
+    blockingReader = 0;
+    binary_semaphore_writer = new Semaphore("ReaderWriterLock Binary Semaphore for Writer", 1);
+    mutex_reader = new Lock("ReaderWriterLock Mutex for Readers");
+}
+
+//----------------------------------------------------------------------
+// ReaderWriterLock::~ReaderWriterLock
+// 	De-allocate reader-writer lock, when no longer needed.  Assume no one
+//	is still waiting on the reader-writer lock!
+//----------------------------------------------------------------------
+
+ReaderWriterLock::~ReaderWriterLock()
+{
+    delete binary_semaphore_writer;
+    delete mutex_reader;
+}
+
+//----------------------------------------------------------------------
+// ReaderWriterLock::ReaderAcquire
+//----------------------------------------------------------------------
+
+void
+ReaderWriterLock::ReaderAcquire()
+{
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
+
+
+    mutex_reader->Acquire(); // Lock r
+    blockingReader++;
+    DEBUG('w', "Reader \"%s\" comming in  \t(blockingReader=%d)\n", currentThread->getName(), blockingReader);
+    if (blockingReader == 1) {
+        binary_semaphore_writer->P(); // Lock g
+    }
+    mutex_reader->Release(); // Unlock r
+
+    (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
+}
+
+//----------------------------------------------------------------------
+// ReaderWriterLock::ReaderRelease
+//----------------------------------------------------------------------
+
+void ReaderWriterLock::ReaderRelease()
+{
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
+
+    mutex_reader->Acquire(); // Lock r
+    blockingReader--;
+    DEBUG('w', "Reader \"%s\" getting out \t(blockingReader=%d)\n", currentThread->getName(), blockingReader);
+    if (blockingReader == 0) {
+        binary_semaphore_writer->V(); // Unlock g
+    }
+    mutex_reader->Release(); // Unlock r
+
+    (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
+}
+
+//----------------------------------------------------------------------
+// ReaderWriterLock::WriterAcquire
+//----------------------------------------------------------------------
+
+void ReaderWriterLock::WriterAcquire()
+{
+    DEBUG('w', "Writer \"%s\" comming in  \t(blockingReader=%d)\n", currentThread->getName(), blockingReader);
+    binary_semaphore_writer->P(); // Lock g
+}
+
+//----------------------------------------------------------------------
+// ReaderWriterLock::WriterRelease
+//----------------------------------------------------------------------
+
+void ReaderWriterLock::WriterRelease()
+{
+    DEBUG('w', "Writer \"%s\" getting out \t(blockingReader=%d)\n", currentThread->getName(), blockingReader);
+    binary_semaphore_writer->V(); // Unlock g
 }

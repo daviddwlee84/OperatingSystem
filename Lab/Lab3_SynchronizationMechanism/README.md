@@ -305,14 +305,14 @@ Condition::Broadcast(Lock* conditionLock)
     // conditionLock must be held by the current Thread
     ASSERT(conditionLock->isHeldByCurrentThread())
 
-    DEBUG('c', "Condition \"%s\" Broadcasting: ", name);
+    DEBUG('b', "Condition \"%s\" Broadcasting: ", name);
     while (!waitQueue->IsEmpty()) {
         // Putting all the threads on ready list
         Thread* thread = (Thread*) waitQueue->Remove();
-        DEBUG('c', "Thread \"%s\", ", thread->getName());
+        DEBUG('b', "Thread \"%s\", ", thread->getName());
         scheduler->ReadyToRun(thread);
     }
-    DEBUG('c', "\n");
+    DEBUG('b', "\n");
 
     (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
 }
@@ -726,9 +726,9 @@ Barrier::ArrivedAndWait()
     // Use mutex to ensure that only one thread modifies remain at a time
     mutex->Acquire();
     remain--;
-    DEBUG('c', "Thread %s enter barrier %s with remain=%d\n", currentThread->getName(), name, remain);
+    DEBUG('b', "Thread %s enter barrier %s with remain=%d\n", currentThread->getName(), name, remain);
     if (remain == 0) {
-        DEBUG('c', "Everyone reached the Barrier!!\n");
+        DEBUG('b', "Everyone reached the Barrier!!\n");
         condition->Broadcast(mutex);
         // Reset barrier
         remain = num_threads;
@@ -768,8 +768,10 @@ Checkout `Lab3Barrier()` and `CalcThread` in `threads/threadtest.cc`.
 
 ### Result with debug flag
 
+> `-d b` for debugging message related to barrier
+
 ```txt
-$ threads/nachos -d c -q 9
+$ threads/nachos -d b -q 9
 Lab3 Challenge1: Barrier
 main() is ready.
 Thread "Calc 1" finish First Calculation
@@ -833,9 +835,380 @@ Result of data:
 > Implement read/write lock, such that a certain amount of thread can read the shared data at the same time.
 > But can only be a single thread writing the shared data at a moment.
 
+The Reader-writer lock is a solution for readers-writers problem.
+And it has been generalized as a special lock on some system.
+
+* [**Synchronization, Part 7: The Reader Writer Problem**](https://github.com/angrave/SystemProgramming/wiki/Synchronization%2C-Part-7%3A-The-Reader-Writer-Problem)
+* [Wiki - Readers–writer lock](https://en.wikipedia.org/wiki/Readers%E2%80%93writer_lock) - I've followed the pseudocode of first implementation (Using two mutexes)
+* [Wiki - Readers–writers problem](https://en.wikipedia.org/wiki/Readers%E2%80%93writers_problem)
+
+Pthreads
+
+* `pthread_rwlock`
+  * `pthread_rwlock_init`
+  * `pthread_rwlock_destroy`
+  * `pthread_rwlock_tryrdlock`
+  * `pthread_rwlock_timedrdlock`
+  * `pthread_rwlock_rdlock`
+  * `pthread_rwlock_timedrdlock`
+  * `pthread_rwlock_tryrdlock`
+  * `pthread_rwlock_trywrlock`
+  * `pthread_rwlock_timedwrlock`
+  * `pthread_rwlock_wrlock`
+  * `pthread_rwlock_unlock`
+
+There are some different readers-writers problem
+
+1. The first readers-writers problem (simplest)
+    * Requires that no reader be kept waiting unless a writer has already obtained permission to use the shared object.
+    * i.e. No reader should wait for other readers to finish simply because a writer is waiting.
+2. The second readers-writers problem
+    * Requires that once a writer is ready, that writer perform its write as soon as possible.
+    * i.e. If a writer is waiting to access the object, no new readers may start reading.
+
+A soluiton to either problem may result in starvation
+
+1. Writers may starve (read-preferring solution)
+2. Readers may starve (write-preferring solution)
+
+In application
+
+* It's easy to identify which processes only read shared data and which processes only write shared data.
+* Usually have more readers than writers.
+
+### The read-preferring Readers-writer Lock
+
+Acquiring a reader-writer lock requires specifying the mode of the lock: either *read* or *write* access.
+
+I'm using two mutexes to implemet this.
+
+Note that, one of the mutex is only used by readers. The other one is a "global" mutual exclusion of writer. This requires that a mutex *acquired by one thread can be released by another*. (So I'll use binary simaphore here)
+
+```cpp
+class ReaderWriterLock {
+  public:
+    ReaderWriterLock(char* debugName); // initialize barrier
+    ~ReaderWriterLock(); // deallocate the barrier
+    char* getName() { return (name); } // debugging assist/
+
+    // For Reader
+    void ReaderAcquire();
+    void ReaderRelease();
+    // For Writer
+    void WriterAcquire();
+    void WriterRelease();
+  
+  private:
+    char* name;             // useful for debugging
+    int blockingReader;     // counts for blocking readers
+
+    // "Global" mutex lock for writer that can be release by other
+    // Alias g in comment
+    Semaphore* binary_semaphore_writer;
+    // Lock used by reader to protect number "blockingReader"
+    // Alias r in comment
+    Lock* mutex_reader;
+};
+```
+
+#### Reader
+
+```cpp
+//----------------------------------------------------------------------
+// ReaderWriterLock::ReaderAcquire
+//----------------------------------------------------------------------
+
+void
+ReaderWriterLock::ReaderAcquire()
+{
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
+
+
+    mutex_reader->Acquire(); // Lock r
+    blockingReader++;
+    DEBUG('w', "Reader \"%s\" comming in  \t(blockingReader=%d)\n", currentThread->getName(), blockingReader);
+    if (blockingReader == 1) {
+        binary_semaphore_writer->P(); // Lock g
+    }
+    mutex_reader->Release(); // Unlock r
+
+    (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
+}
+```
+
+```cpp
+//----------------------------------------------------------------------
+// ReaderWriterLock::ReaderRelease
+//----------------------------------------------------------------------
+
+void ReaderWriterLock::ReaderRelease()
+{
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
+
+    mutex_reader->Acquire(); // Lock r
+    blockingReader--;
+    DEBUG('w', "Reader \"%s\" getting out \t(blockingReader=%d)\n", currentThread->getName(), blockingReader);
+    if (blockingReader == 0) {
+        binary_semaphore_writer->V(); // Unlock g
+    }
+    mutex_reader->Release(); // Unlock r
+
+    (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
+}
+```
+
+#### Writer
+
+```cpp
+//----------------------------------------------------------------------
+// ReaderWriterLock::WriterAcquire
+//----------------------------------------------------------------------
+
+void ReaderWriterLock::WriterAcquire()
+{
+    DEBUG('w', "Writer \"%s\" comming in  \t(blockingReader=%d)\n", currentThread->getName(), blockingReader);
+    binary_semaphore_writer->P(); // Lock g
+}
+```
+
+```cpp
+//----------------------------------------------------------------------
+// ReaderWriterLock::WriterRelease
+//----------------------------------------------------------------------
+
+void ReaderWriterLock::WriterRelease()
+{
+    DEBUG('w', "Writer \"%s\" getting out \t(blockingReader=%d)\n", currentThread->getName(), blockingReader);
+    binary_semaphore_writer->V(); // Unlock g
+}
+```
+
+Other trivial code implementation just checkout `threads/synch.cc`.
+
+### The First Readers-writer Problem
+
+I've made the problem, that
+
+* The Writer is going to write the quote of Albert Einstein into `char quote[SENTENCE_LENGTH][MAX_CHAR]`.
+  * Insanity: doing the same thing over and over again and expecting different results
+* The Readers are going to read the quote repeatedly until writer has finish the quote.
+
+The problem is written in `threads/threadtest.cc` as case 10.
+
+#### Reader Thread
+
+```cpp
+//----------------------------------------------------------------------
+// Reader Thread
+//  Keeping trying to read the quote. Until writer has finished the
+//  quote. (i.e. the words is match the SENTENCE_LENGTH)
+//----------------------------------------------------------------------
+
+void
+ReaderThread(int reader_id)
+{
+    do {
+        RWLock->ReaderAcquire();
+
+        printf("Reader %d is reading: ", reader_id);
+        for (int i = 0; i < words; i++) {
+            printf("%s ", quote[i]);
+        }
+        printf("\n");
+
+        RWLock->ReaderRelease();
+    } while (words < SENTENCE_LENGTH);
+}
+```
+
+#### Writer Thread
+
+```cpp
+//----------------------------------------------------------------------
+// Writer Thread
+//  Trying hard to write the quote...
+//----------------------------------------------------------------------
+
+void
+WriterThread(int dummy)
+{
+    while (words < SENTENCE_LENGTH) {
+        RWLock->WriterAcquire();
+
+        strcpy(quote[words], AlbertEinstein[words]); // composing...
+        words++;
+
+        printf("Writer is writting: ");
+        for (int i = 0; i < words; i++) {
+            printf("%s ", quote[i]);
+        }
+        printf("\n");
+
+        RWLock->WriterRelease();
+    }
+}
+```
+
+### Result with random context switch
+
+> `-d w` for reader-writer lock; `-d c` for context switch;
+> `-rs` for random context switch timer interrupt
+
+This is the result with 3 readers.
+
+> We need some luck to see the "phenomenon".
+> Threre are some possible scenario during random context switch
+>
+> 1. The thread has done its job.
+> 2. Writer is still writing
+> 3. Readers are still reading
+>
+> If you got lots of readers, you may take a long time for writer to finsh composing.
+> But sometime writer is just happen to writting...
+
+#### With 2 readers (without reader-writer messages)
+
+```txt
+$ threads/nachos -d c -rs -q 10
+Lab3 Challenge2: Reader-Writer
+(add `-d wc -rs` argument to show "Context Switch", RWLock message and activate random timer)
+Writer is writting: Insanity: 
+Writer is writting: Insanity: doing 
+Writer is writting: Insanity: doing the 
+Writer is writting: Insanity: doing the same 
+Writer is writting: Insanity: doing the same thing 
+Writer is writting: Insanity: doing the same thing over 
+Writer is writting: Insanity: doing the same thing over and 
+ << random Context Switch (stats->totalTicks = 190) >>
+Reader 1 is reading: Insanity: doing the same thing over and 
+Reader 1 is reading: Insanity: doing the same thing over and 
+Reader 1 is reading: Insanity: doing the same thing over and 
+Reader 1 is reading: Insanity: doing the same thing over and 
+ << random Context Switch (stats->totalTicks = 280) >>
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+ << random Context Switch (stats->totalTicks = 460) >>
+Reader 1 is reading: Insanity: doing the same thing over and 
+Reader 1 is reading: Insanity: doing the same thing over and 
+Reader 1 is reading: Insanity: doing the same thing over and 
+Reader 1 is reading: Insanity: doing the same thing over and 
+ << random Context Switch (stats->totalTicks = 580) >>
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+ << random Context Switch (stats->totalTicks = 780) >>
+Reader 1 is reading: Insanity: doing the same thing over and 
+Reader 1 is reading: Insanity: doing the same thing over and 
+Reader 1 is reading: Insanity: doing the same thing over and 
+Reader 1 is reading: Insanity: doing the same thing over and 
+Reader 1 is reading: Insanity: doing the same thing over and 
+Reader 1 is reading: Insanity: doing the same thing over and 
+Reader 1 is reading: Insanity: doing the same thing over and 
+ << random Context Switch (stats->totalTicks = 920) >>
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+Reader 2 is reading: Insanity: doing the same thing over and 
+ << random Context Switch (stats->totalTicks = 1110) >>
+Writer is writting: Insanity: doing the same thing over and over 
+Writer is writting: Insanity: doing the same thing over and over again 
+Writer is writting: Insanity: doing the same thing over and over again and 
+Writer is writting: Insanity: doing the same thing over and over again and expecting 
+Writer is writting: Insanity: doing the same thing over and over again and expecting different 
+ << random Context Switch (stats->totalTicks = 1210) >>
+Reader 1 is reading: Insanity: doing the same thing over and over again and expecting different 
+Reader 1 is reading: Insanity: doing the same thing over and over again and expecting different 
+ << random Context Switch (stats->totalTicks = 1260) >>
+Reader 2 is reading: Insanity: doing the same thing over and over again and expecting different 
+ << random Context Switch (stats->totalTicks = 1290) >>
+Writer is writting: Insanity: doing the same thing over and over again and expecting different results. 
+```
+
+> The `quote` is taken control continuously by Reader 1 and 2...
+
+#### With 3 readers (with reader-writer messages)
+
+```txt
+$ threads/nachos -d wc -rs -q 10
+Lab3 Challenge2: Reader-Writer
+(add `-d wc -rs` argument to show "Context Switch", RWLock message and activate random timer)
+Writer "Writer" comming in      (blockingReader=0)
+Writer is writting: Insanity: 
+Writer "Writer" getting out     (blockingReader=0)
+Writer "Writer" comming in      (blockingReader=0)
+Writer is writting: Insanity: doing 
+Writer "Writer" getting out     (blockingReader=0)
+Writer "Writer" comming in      (blockingReader=0)
+Writer is writting: Insanity: doing the 
+Writer "Writer" getting out     (blockingReader=0)
+Writer "Writer" comming in      (blockingReader=0)
+Writer is writting: Insanity: doing the same 
+Writer "Writer" getting out     (blockingReader=0)
+Writer "Writer" comming in      (blockingReader=0)
+Writer is writting: Insanity: doing the same thing 
+Writer "Writer" getting out     (blockingReader=0)
+Writer "Writer" comming in      (blockingReader=0)
+Writer is writting: Insanity: doing the same thing over 
+Writer "Writer" getting out     (blockingReader=0)
+Writer "Writer" comming in      (blockingReader=0)
+ << random Context Switch (stats->totalTicks = 190) >>
+Reader "Reader 1" comming in    (blockingReader=1)
+Writer is writting: Insanity: doing the same thing over and 
+Writer "Writer" getting out     (blockingReader=1)
+Writer "Writer" comming in      (blockingReader=1)
+Writer is writting: Insanity: doing the same thing over and over 
+Writer "Writer" getting out     (blockingReader=1)
+Writer "Writer" comming in      (blockingReader=1)
+ << random Context Switch (stats->totalTicks = 280) >>
+Writer is writting: Insanity: doing the same thing over and over again 
+Writer "Writer" getting out     (blockingReader=1)
+Writer "Writer" comming in      (blockingReader=1)
+Writer is writting: Insanity: doing the same thing over and over again and 
+Writer "Writer" getting out     (blockingReader=1)
+Writer "Writer" comming in      (blockingReader=1)
+Writer is writting: Insanity: doing the same thing over and over again and expecting 
+Writer "Writer" getting out     (blockingReader=1)
+Writer "Writer" comming in      (blockingReader=1)
+Writer is writting: Insanity: doing the same thing over and over again and expecting different 
+Writer "Writer" getting out     (blockingReader=1)
+Writer "Writer" comming in      (blockingReader=1)
+Writer is writting: Insanity: doing the same thing over and over again and expecting different results. 
+Writer "Writer" getting out     (blockingReader=1)
+Reader 1 is reading: Insanity: doing the same thing over and over again and expecting different results. 
+Reader "Reader 1" getting out   (blockingReader=0)
+Reader "Reader 2" comming in    (blockingReader=1)
+Reader 2 is reading: Insanity: doing the same thing over and over again and expecting different results. 
+Reader "Reader 2" getting out   (blockingReader=0)
+Reader "Reader 3" comming in    (blockingReader=1)
+Reader 3 is reading: Insanity: doing the same thing over and over again and expecting different results. 
+Reader "Reader 3" getting out   (blockingReader=0)
+```
+
+> The `quote` is luckly taken control by Writer...
+
 ## Challenge 3: Implement Linux's kfifo
 
 > Research if Linux's kfifo module can be merge into Nachos as a new module.
+
+[`include/linux/kfifo.h`](https://github.com/torvalds/linux/blob/master/include/linux/kfifo.h)
 
 ## Trouble Shooting
 
@@ -937,24 +1310,27 @@ char * strndup(const char *s1, size_t n);
 * [Wiki - Monitor (synchronization) - Condition variables](https://en.wikipedia.org/wiki/Monitor_(synchronization)#Condition_variables)
 * [Stackoverflow - When to use pthread condition variables?](https://stackoverflow.com/questions/20772476/when-to-use-pthread-condition-variables)
 * [C++ Core Guidelines: Be Aware of the Traps of Condition Variables](http://www.modernescpp.com/index.php/c-core-guidelines-be-aware-of-the-traps-of-condition-variables)
+* [GeeksforGeeks - Array of Strings in C++ (3 Different Ways to Create)](https://www.geeksforgeeks.org/array-strings-c-3-different-ways-create/)
 
 ### Book
+
+> Bold the chapter with more reference.
 
 Operating System Concept 9ed.
 
 * Ch3 Processes
   * Ch3.4 Interprocess Communication
-    * Ch3.4.1 Shared-Memory Systems => Producer-consumer bounded buffer
+    * **Ch3.4.1** Shared-Memory Systems => Producer-consumer bounded buffer
 * Ch5 Process Synchronization
-  * Ch5.1 Background => Producer-consumer
+  * **Ch5.1** Background => Producer-consumer
   * Ch5.2 The Critical-Section Problem
   * Ch5.3 Peterson's Solution
   * Ch5.4 Synchronization Hardware
   * Ch5.5 Mutex Locks 互斥鎖（鎖）
   * Ch5.6 Semaphores 號誌（信號量）
   * Ch5.7 Classic Problems of Synchronization
-    * Ch5.7.1 The Bounded-Buffer Problem => Producer-consumer semaphore
-    * Ch5.7.2 The Readers-Writers Problem
+    * **Ch5.7.1** The Bounded-Buffer Problem => Producer-consumer semaphore
+    * **Ch5.7.2** The Readers-Writers Problem
     * Ch5.7.3 The Dining-Philosophers Problem
   * Ch5.8 Monitors
   * Ch5.9 Synchronization Examples
@@ -968,7 +1344,7 @@ Modern Operating Systems 4ed.
   * Ch2.3.6 Mutexes
   * Ch2.3.7 Monitors
   * Ch2.3.8 Message Passing
-  * Ch2.3.9 Barriers
+  * **Ch2.3.9** Barriers
 
 ### Example
 

@@ -607,6 +607,101 @@ Lab3Barrier()
 }
 
 //----------------------------------------------------------------------
+// Shared Data for Reader-Writer
+//  A quote of Albert Einstein
+//----------------------------------------------------------------------
+
+#define SENTENCE_LENGTH 13
+#define MAX_CHAR 10
+const char AlbertEinstein[SENTENCE_LENGTH][MAX_CHAR] = {
+    "Insanity:", "doing", "the", "same", "thing", "over", "and", "over", "again",
+    "and", "expecting", "different", "results."
+};
+int words; // How many words does writer writes.
+char quote[SENTENCE_LENGTH][MAX_CHAR];
+
+ReaderWriterLock* RWLock;
+
+//----------------------------------------------------------------------
+// Writer Thread
+//  Trying hard to write the quote...
+//----------------------------------------------------------------------
+
+void
+WriterThread(int dummy)
+{
+    while (words < SENTENCE_LENGTH) {
+        RWLock->WriterAcquire();
+
+        strcpy(quote[words], AlbertEinstein[words]); // composing...
+        words++;
+
+        printf("Writer is writting: ");
+        for (int i = 0; i < words; i++) {
+            printf("%s ", quote[i]);
+        }
+        printf("\n");
+
+        RWLock->WriterRelease();
+    }
+}
+
+//----------------------------------------------------------------------
+// Reader Thread
+//  Keeping trying to read the quote. Until writer has finished the
+//  quote. (i.e. the words is match the SENTENCE_LENGTH)
+//----------------------------------------------------------------------
+
+void
+ReaderThread(int reader_id)
+{
+    do {
+        RWLock->ReaderAcquire();
+
+        printf("Reader %d is reading: ", reader_id);
+        for (int i = 0; i < words; i++) {
+            printf("%s ", quote[i]);
+        }
+        printf("\n");
+
+        RWLock->ReaderRelease();
+    } while (words < SENTENCE_LENGTH);
+}
+
+//----------------------------------------------------------------------
+// Lab3 Challenge2 Reader-writer
+//  Create multiple reader and a writer.
+//
+//  Shared data: quote[][]
+//----------------------------------------------------------------------
+
+void
+Lab3ReaderWriter()
+{
+    // Change the reader amount to whatever you like
+    // but not too many if you use random context switch
+    // and you/(the writer) are/(is) not lucky...
+    const int total_reader = 2;
+
+    // Creating writer
+    Thread* writer = new Thread("Writer");
+    writer->Fork(WriterThread, (void*)0);
+
+    // Creating readers
+    for (int i = 0; i < total_reader; i++) {
+        char readerName[10];
+        sprintf(readerName, "Reader %d", i+1); // Used to transfer int -> string
+        // Create threads with priority grater than main
+        Thread* reader = new Thread(strdup(readerName)); // Duplicate string or they shared pointer
+        reader->Fork(ReaderThread, (void*)i+1);
+    }
+
+    RWLock = new ReaderWriterLock("RWLock");
+
+    currentThread->Yield(); // Yield the main thread
+}
+
+//----------------------------------------------------------------------
 // ThreadTest
 // 	Invoke a test routine.
 //----------------------------------------------------------------------
@@ -672,7 +767,13 @@ ThreadTest()
         break;
     case 9:
         printf("Lab3 Challenge1: Barrier\n");
+        printf("(add `-d b` to show Barrier related debugging messabe)\n");
         Lab3Barrier();
+        break;
+    case 10:
+        printf("Lab3 Challenge2: Reader-Writer\n");
+        printf("(add `-d wc -rs` argument to show \"Context Switch\", RWLock message and activate random timer)\n");
+        Lab3ReaderWriter();
         break;
     default:
         printf("No test specified.\n");

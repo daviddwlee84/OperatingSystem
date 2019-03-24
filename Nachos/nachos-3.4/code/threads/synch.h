@@ -162,4 +162,31 @@ class Barrier {
     Condition* condition;   // Used to sleep the Thread and wake them up
 };
 
+// Lab3: Challenge Reader-Writer Lock
+
+class ReaderWriterLock {
+  public:
+    ReaderWriterLock(char* debugName); // initialize barrier
+    ~ReaderWriterLock(); // deallocate the barrier
+    char* getName() { return (name); } // debugging assist/
+
+    // For Reader
+    void ReaderAcquire();
+    void ReaderRelease();
+    // For Writer
+    void WriterAcquire();
+    void WriterRelease();
+  
+  private:
+    char* name;             // useful for debugging
+    int blockingReader;     // counts for blocking readers
+
+    // "Global" mutex lock for writer that can be release by other
+    // Alias g in comment
+    Semaphore* binary_semaphore_writer;
+    // Lock used by reader to protect number "blockingReader"
+    // Alias r in comment
+    Lock* mutex_reader;
+};
+
 #endif // SYNCH_H
