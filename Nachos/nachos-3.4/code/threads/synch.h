@@ -143,4 +143,23 @@ class Condition {
     // plus some other stuff you'll need to define
     List* waitQueue; // Waiting queue for the Thread blocked by this condition
 };
+
+// Lab3: Challenge Barrier
+
+class Barrier {
+  public:
+    Barrier(char* debugName, int num); // initialize barrier
+    ~Barrier(); // deallocate the barrier
+    char* getName() { return (name); } // debugging assist
+
+    void ArrivedAndWait(); // Sleep the Thread until all the Threads arrived
+
+  private:
+    char* name;             // useful for debugging
+    int remain;             // How many Threads have not arrived
+    int num_threads;        // Total Threads
+    Lock* mutex;            // Lock for "remain"
+    Condition* condition;   // Used to sleep the Thread and wake them up
+};
+
 #endif // SYNCH_H

@@ -227,14 +227,16 @@ Condition::Wait(Lock* conditionLock)
     // conditionLock must be locked
     ASSERT(conditionLock->isLocked());
 
-    waitQueue->Append(currentThread);
-
-    // Release the lock while it waits
+    // 1. Release the lock while it waits
     conditionLock->Release();
+
+    // 2. Append into waitQueue and sleep
+    waitQueue->Append(currentThread);
     currentThread->Sleep();
 
     // Awake by Signal...
 
+    // 3. Reclaim lock while awake
     conditionLock->Acquire();
 
     (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
@@ -283,11 +285,73 @@ Condition::Broadcast(Lock* conditionLock)
     // conditionLock must be held by the current Thread
     ASSERT(conditionLock->isHeldByCurrentThread())
 
+    DEBUG('c', "Condition \"%s\" Broadcasting: ", name);
     while (!waitQueue->IsEmpty()) {
         // Putting all the threads on ready list
         Thread* thread = (Thread*) waitQueue->Remove();
+        DEBUG('c', "Thread \"%s\", ", thread->getName());
         scheduler->ReadyToRun(thread);
     }
+    DEBUG('c', "\n");
+
+    (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
+}
+
+//----------------------------------------------------------------------
+// Barrier::Barrier
+// 	Initialize a barrier, so that it can be used for synchronization.
+//
+//	"debugName" is an arbitrary name, useful for debugging.
+//  "num" is the number of threads
+//----------------------------------------------------------------------
+
+Barrier::Barrier(char* debugName, int num)
+{
+    name = debugName;
+    num_threads = num;
+    remain = num_threads;
+    mutex = new Lock("Barrier Mutex");
+    condition = new Condition("Barrier Condition");
+}
+
+//----------------------------------------------------------------------
+// Barrier::~Barrier
+// 	De-allocate barrier, when no longer needed.  Assume no one
+//	is still waiting on the condition variable!
+//----------------------------------------------------------------------
+
+Barrier::~Barrier()
+{
+    delete mutex;
+    delete condition;
+}
+
+//----------------------------------------------------------------------
+// Barrier::ArrivedAndWait
+// 	Allows a single thread to indicate that it has arrived at a synchronization point.
+//  The thread will block until the synchronization condition has been reached.
+//  May be called repeatedly by a given thread.
+//----------------------------------------------------------------------
+
+void
+Barrier::ArrivedAndWait()
+{
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
+
+    // Use mutex to ensure that only one thread modifies remain at a time
+    mutex->Acquire();
+    remain--;
+    DEBUG('c', "Thread %s enter barrier %s with remain=%d\n", currentThread->getName(), name, remain);
+    if (remain == 0) {
+        DEBUG('c', "Everyone reached the Barrier!!\n");
+        condition->Broadcast(mutex);
+        // Reset barrier
+        remain = num_threads;
+    } else {
+        // while (remain != 0) // While will sleep the waken Thread sleep again!
+        condition->Wait(mutex);
+    }
+    mutex->Release();
 
     (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
 }

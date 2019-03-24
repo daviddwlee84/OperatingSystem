@@ -217,6 +217,8 @@ Notes that all the condition operation has a input of `conditionLock`. That's be
 
 In addition, when calling `Condition::Wait()`, the lock must be locked. And wait must be wrapped with a loop.
 
+> BUT in Nachos, warp wait in a loop will CAUSE SERIOUS PROBLEM that `Condition::Wait()` will sleep/block the threads again right after they have been waken up. So don't do that (i.e. in [Barrier](#Implementation---The-Barrier-class)).
+
 ```cpp
 //----------------------------------------------------------------------
 // Condition::Wait
@@ -241,14 +243,16 @@ Condition::Wait(Lock* conditionLock)
     // conditionLock must be locked
     ASSERT(conditionLock->isLocked());
 
-    waitQueue->Append(currentThread);
-
-    // Release the lock while it waits
+    // 1. Release the lock while it waits
     conditionLock->Release();
+
+    // 2. Append into waitQueue and sleep
+    waitQueue->Append(currentThread);
     currentThread->Sleep();
 
     // Awake by Signal...
 
+    // 3. Reclaim lock while awake
     conditionLock->Acquire();
 
     (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
@@ -301,11 +305,14 @@ Condition::Broadcast(Lock* conditionLock)
     // conditionLock must be held by the current Thread
     ASSERT(conditionLock->isHeldByCurrentThread())
 
+    DEBUG('c', "Condition \"%s\" Broadcasting: ", name);
     while (!waitQueue->IsEmpty()) {
         // Putting all the threads on ready list
         Thread* thread = (Thread*) waitQueue->Remove();
+        DEBUG('c', "Thread \"%s\", ", thread->getName());
         scheduler->ReadyToRun(thread);
     }
+    DEBUG('c', "\n");
 
     (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
 }
@@ -646,6 +653,7 @@ $$ Consumer 2 $$: Consuming item with value 0!!
 
 * [Wiki - Barrier (computer science)](https://en.wikipedia.org/wiki/Barrier_(computer_science))
 * [Latches And Barriers](http://www.modernescpp.com/index.php/latches-and-barriers)
+* [Stackoverflow - What is the best way to realize a synchronization barrier between threads](https://stackoverflow.com/questions/38999911/what-is-the-best-way-to-realize-a-synchronization-barrier-between-threads)
 
 Pthreads
 
@@ -676,7 +684,148 @@ Example using Pthread barrier
 
 ### Implementation - The Barrier class
 
-I've imitiate `std::barrier` and build a Barrier class
+I've imitiate the `arrive_and_wait` of `std::barrier` and build a Barrier class
+
+```cpp
+class Barrier {
+  public:
+    Barrier(char* debugName, int num); // initialize barrier
+    ~Barrier(); // deallocate the barrier
+    char* getName() { return (name); } // debugging assist
+
+    void ArrivedAndWait(); // Sleep the Thread until all the Threads arrived
+
+  private:
+    char* name;             // useful for debugging
+    int remain;             // How many Threads have not arrived
+    int num_threads;        // Total Threads
+    Lock* mutex;            // Lock for "remain"
+    Condition* condition;   // Used to sleep the Thread and wake them up
+};
+```
+
+The idea is simple.
+
+If there is anyone haven't reach the barrier (remain > 0). Sleep the current Thread (using Condition)
+
+Else broadcast to wake everyone up (who sleeping in the Condition). (And reset the barrier).
+
+```cpp
+//----------------------------------------------------------------------
+// Barrier::ArrivedAndWait
+// 	Allows a single thread to indicate that it has arrived at a synchronization point.
+//  The thread will block until the synchronization condition has been reached.
+//  May be called repeatedly by a given thread.
+//----------------------------------------------------------------------
+
+void
+Barrier::ArrivedAndWait()
+{
+    IntStatus oldLevel = interrupt->SetLevel(IntOff);	// disable interrupts
+
+    // Use mutex to ensure that only one thread modifies remain at a time
+    mutex->Acquire();
+    remain--;
+    DEBUG('c', "Thread %s enter barrier %s with remain=%d\n", currentThread->getName(), name, remain);
+    if (remain == 0) {
+        DEBUG('c', "Everyone reached the Barrier!!\n");
+        condition->Broadcast(mutex);
+        // Reset barrier
+        remain = num_threads;
+    } else {
+        // while (remain != 0) // While will sleep the waken Thread sleep again!
+        condition->Wait(mutex);
+    }
+    mutex->Release();
+
+    (void) interrupt->SetLevel(oldLevel);	// re-enable interrupts
+}
+```
+
+Other trivial code implementation just checkout `threads/synch.cc`.
+
+### Testing
+
+I've made the following scenario
+
+* Shared memory: `matrix[24][10]`
+* 4 Threads. Each thread manipulate 6 rows (24/4).
+
+There are three parts of calculation. Each of them will wait at the barrier until every body complete.
+
+1. Threads do first calculation
+   * `matrix[x][y] += (x+1)*(y+1)`
+2. Barrier!
+3. Threads do second calculation
+   * `matrix[x][y] /= startRow+1`
+4. Barrier!
+5. Threads do third calculation
+   * `matrix[x][y] -= startRow/N_ROWS`
+
+Because the code is quite long.
+Checkout `Lab3Barrier()` and `CalcThread` in `threads/threadtest.cc`.
+(And it's as case 9)
+
+### Result with debug flag
+
+```txt
+$ threads/nachos -d c -q 9
+Lab3 Challenge1: Barrier
+main() is ready.
+Thread "Calc 1" finish First Calculation
+Thread Calc 1 enter barrier Matrix Calc with remain=4
+Thread "Calc 2" finish First Calculation
+Thread Calc 2 enter barrier Matrix Calc with remain=3
+Thread "Calc 3" finish First Calculation
+Thread Calc 3 enter barrier Matrix Calc with remain=2
+Thread "Calc 4" finish First Calculation
+Thread Calc 4 enter barrier Matrix Calc with remain=1
+Thread main enter barrier Matrix Calc with remain=0
+Everyone reached the Barrier!!
+Condition "Barrier Condition" Broadcasting: Thread "Calc 1", Thread "Calc 2", Thread "Calc 3", Thread "Calc 4", 
+main() is going!
+Thread "Calc 1" finish Second Calculation
+Thread Calc 1 enter barrier Matrix Calc with remain=4
+Thread "Calc 2" finish Second Calculation
+Thread Calc 2 enter barrier Matrix Calc with remain=3
+Thread "Calc 3" finish Second Calculation
+Thread Calc 3 enter barrier Matrix Calc with remain=2
+Thread "Calc 4" finish Second Calculation
+Thread Calc 4 enter barrier Matrix Calc with remain=1
+Thread main enter barrier Matrix Calc with remain=0
+Everyone reached the Barrier!!
+Condition "Barrier Condition" Broadcasting: Thread "Calc 1", Thread "Calc 2", Thread "Calc 3", Thread "Calc 4", 
+main() is going again!
+Thread "Calc 1" finish Third Calculation
+Thread "Calc 2" finish Third Calculation
+Thread "Calc 3" finish Third Calculation
+Thread "Calc 4" finish Third Calculation
+Result of data:
+ 1.00  2.00  3.00  4.00  5.00  6.00  7.00  8.00  9.00 10.00 
+ 2.00  4.00  6.00  8.00 10.00 12.00 14.00 16.00 18.00 20.00 
+ 3.00  6.00  9.00 12.00 15.00 18.00 21.00 24.00 27.00 30.00 
+ 4.00  8.00 12.00 16.00 20.00 24.00 28.00 32.00 36.00 40.00 
+ 5.00 10.00 15.00 20.00 25.00 30.00 35.00 40.00 45.00 50.00 
+ 6.00 12.00 18.00 24.00 30.00 36.00 42.00 48.00 54.00 60.00 
+ 0.00  1.00  2.00  3.00  4.00  5.00  6.00  7.00  8.00  9.00 
+ 0.14  1.29  2.43  3.57  4.71  5.86  7.00  8.14  9.29 10.43 
+ 0.29  1.57  2.86  4.14  5.43  6.71  8.00  9.29 10.57 11.86 
+ 0.43  1.86  3.29  4.71  6.14  7.57  9.00 10.43 11.86 13.29 
+ 0.57  2.14  3.71  5.29  6.86  8.43 10.00 11.57 13.14 14.71 
+ 0.71  2.43  4.14  5.86  7.57  9.29 11.00 12.71 14.43 16.14 
+-1.00  0.00  1.00  2.00  3.00  4.00  5.00  6.00  7.00  8.00 
+-0.92  0.15  1.23  2.31  3.38  4.46  5.54  6.62  7.69  8.77 
+-0.85  0.31  1.46  2.62  3.77  4.92  6.08  7.23  8.38  9.54 
+-0.77  0.46  1.69  2.92  4.15  5.38  6.62  7.85  9.08 10.31 
+-0.69  0.62  1.92  3.23  4.54  5.85  7.15  8.46  9.77 11.08 
+-0.62  0.77  2.15  3.54  4.92  6.31  7.69  9.08 10.46 11.85 
+-2.00 -1.00  0.00  1.00  2.00  3.00  4.00  5.00  6.00  7.00 
+-1.95 -0.89  0.16  1.21  2.26  3.32  4.37  5.42  6.47  7.53 
+-1.89 -0.79  0.32  1.42  2.53  3.63  4.74  5.84  6.95  8.05 
+-1.84 -0.68  0.47  1.63  2.79  3.95  5.11  6.26  7.42  8.58 
+-1.79 -0.58  0.63  1.84  3.05  4.26  5.47  6.68  7.89  9.11 
+-1.74 -0.47  0.79  2.05  3.32  4.58  5.84  7.11  8.37  9.63 
+```
 
 ## Challenge 2: Read/Write Lock
 
@@ -733,6 +882,15 @@ case 8:
 > It may caused by you declare a struct pointer and then you access it.
 > You should declare a struct normally. And pass it with `&` if you wan't to pass in address.
 
+* [Debugging Segmentation Faults and Pointer Problems](https://www.cprogramming.com/debugging/segfaults.html)
+
+Common mistakes:
+
+1. dereferencing NULL
+2. dereferencing an uninitialized pointer
+3. dereferencing a pointer that has been freed (or deleted, in C++) or that has gone out of scope (in the case of arrays declared in functions)
+4. writing off the end of an array.
+
 ### Warning deprecated conversion from string constant to ‘char*’
 
 > So many warning message makes me feel annoying..
@@ -743,7 +901,7 @@ case 8:
     > I've add it in `Makefile.common` in CFLAGS
 2. Use `char const *` as the type instead of `char*`
 
-### strcat a integer
+### strcat() a integer, strcpy() and strdup()
 
 ```c
 char string[STRING_SIZE] = "text "
@@ -752,11 +910,33 @@ sprintf(buffer, "%d", number);
 strcat(string, buffer)
 ```
 
+#### copy
+
+```c
+char * strncpy(char * dst, const char * src, size_t len));
+```
+
+```c
+char str[80];
+strcpy (str,"these ");
+strcat (str,"strings ");
+strcat (str,"are ");
+strcat (str,"concatenated.");
+puts (str);
+```
+
+#### duplicate string
+
+```c
+char * strndup(const char *s1, size_t n);
+```
+
 ## Resources
 
 * [Wiki - Concurrency (computer science)](https://en.wikipedia.org/wiki/Concurrency_(computer_science))
 * [Wiki - Monitor (synchronization) - Condition variables](https://en.wikipedia.org/wiki/Monitor_(synchronization)#Condition_variables)
 * [Stackoverflow - When to use pthread condition variables?](https://stackoverflow.com/questions/20772476/when-to-use-pthread-condition-variables)
+* [C++ Core Guidelines: Be Aware of the Traps of Condition Variables](http://www.modernescpp.com/index.php/c-core-guidelines-be-aware-of-the-traps-of-condition-variables)
 
 ### Book
 

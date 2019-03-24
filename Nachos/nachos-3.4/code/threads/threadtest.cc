@@ -481,6 +481,132 @@ Lab3ProducerConsumer()
 }
 
 //----------------------------------------------------------------------
+// Shared Data for Barrier
+//----------------------------------------------------------------------
+
+#define ROWS 24
+#define COLS 10
+#define N_THREAD 4 // Threads
+#define N_ROWS (ROWS/N_THREAD) // Threads calculate rows
+double matrix[ROWS][COLS];
+
+Barrier* barrier;
+
+//----------------------------------------------------------------------
+// Calculation Thread
+//  Do the calculation for each Thread
+//----------------------------------------------------------------------
+
+void
+CalcThread(int startRow)
+{
+    int x, y;
+
+    // Determine calculate region
+    int endRow = startRow + N_ROWS;
+
+    // First calculation
+    for (x = startRow; x < endRow; x++) for (y = 0; y < COLS; y++) {
+        matrix[x][y] += (x+1)*(y+1);
+    }
+
+    printf("Thread \"%s\" finish First Calculation\n", currentThread->getName());
+
+    /********** Barrier **********/
+    barrier->ArrivedAndWait();
+    /*****************************/
+
+    // Second calculation
+    for (x = startRow; x < endRow; x++) for (y = 0; y < COLS; y++) {
+        matrix[x][y] /= startRow+1;
+    }
+
+    printf("Thread \"%s\" finish Second Calculation\n", currentThread->getName());
+
+    /********** Barrier **********/
+    barrier->ArrivedAndWait();
+    /*****************************/
+
+    // Third calculation
+    for (x = startRow; x < endRow; x++) for (y = 0; y < COLS; y++) {
+        matrix[x][y] -= startRow/N_ROWS;
+    }
+
+    printf("Thread \"%s\" finish Third Calculation\n", currentThread->getName());
+}
+
+//----------------------------------------------------------------------
+// Lab3 Challenge1 Barrier
+//  1. Threads do first calculation (use and change values in data)
+//  2. Barrier! Wait for all threads to finish first calculation before continuing
+//  3. Threads do second calculation (use and change values in data)
+//  4. Barrier! Wait for all threads to finish second calculation before continuing
+//  5. Threads do third calculation (use and change values in data)
+//
+//  Shared memory: matrix[24][10]; 4 Threads. Each thread manipulate 6 rows
+//----------------------------------------------------------------------
+
+void
+Lab3Barrier()
+{
+    Thread* calcThreads[N_THREAD];
+    barrier = new Barrier("Matrix Calc", N_THREAD+1); // +1 for main thread
+
+    // Creating threads
+    for (int i = 0; i < N_THREAD; i++) {
+        char ThreadName[10];
+        sprintf(ThreadName, "Calc %d", i+1); // Used to transfer int -> string
+        // Create threads with priority grater than main
+        Thread *calc = new Thread(strdup(ThreadName)); // Duplicate string or they shared pointer
+        calcThreads[i] = calc;
+    }
+
+    // Fork threads
+    int startRow = 0;
+    for (int i = 0; i < N_THREAD; i++) {
+        calcThreads[i]->Fork(CalcThread, (void*)startRow);
+        startRow += N_ROWS;
+    }
+
+    // Initialization
+    int row, col;
+    for (row = 0; row < ROWS; row++ ) {
+        for (col = 0; col < COLS; col++) {
+            matrix[row][col] = 0;
+        }
+    }
+
+    printf("main() is ready.\n");
+
+    currentThread->Yield(); // Yield the main thread
+    // Everybody doing First calculation
+
+    barrier->ArrivedAndWait();
+    // main will wake everybody up when everybody is reaching the barrier
+
+    printf("main() is going!\n");
+
+    currentThread->Yield(); // Yield the main thread
+    // Everybody doing Second calculation
+
+    barrier->ArrivedAndWait();
+
+    printf("main() is going again!\n");
+
+    currentThread->Yield(); // Yield the main thread
+    // Everybody doing Third calculation 
+
+    // Back to main and print the result
+    printf("Result of data:\n");
+    for (row = 0; row < ROWS; row++ ) {
+        for (col = 0; col < COLS; col++) {
+            printf("%5.2lf ", matrix[row][col]);
+        }
+        printf("\n");
+    }
+}
+
+//----------------------------------------------------------------------
 // ThreadTest
 // 	Invoke a test routine.
 //----------------------------------------------------------------------
@@ -543,6 +669,10 @@ ThreadTest()
         printf("%d\n\n", new_item->value);
 
         */
+        break;
+    case 9:
+        printf("Lab3 Challenge1: Barrier\n");
+        Lab3Barrier();
         break;
     default:
         printf("No test specified.\n");
