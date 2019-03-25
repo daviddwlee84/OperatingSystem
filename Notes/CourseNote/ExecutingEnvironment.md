@@ -1,5 +1,7 @@
 # Executing Environment and Mechanism
 
+[Process Synchronization and Interprocess Communication Practice](../../Practice/InterprocessSynchronization)
+
 ```txt
 Application <----> OS <----> Hardware
               |          |
@@ -233,7 +235,7 @@ Cache (SRAM) 快取記憶體、高速緩存
 
 ```txt
 ┌-----┐                                ┌-------┐                          ┌--------┐
-| CPU | <---Byte or Word transfer ---> | Cache | <--- Block transfer ---> | Memory |
+| CPU | <--- Byte or Word transfer ---> | Cache | <--- Block transfer ---> | Memory |
 └-----┘                                └-------┘                          └--------┘
 ```
 
