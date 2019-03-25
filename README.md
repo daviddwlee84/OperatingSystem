@@ -20,12 +20,12 @@ Lab 3|[Synchronization Mechanism](Lab/Lab3_SynchronizationMechanism/README.md)|C
 
 ### XV6 Source Code Reading
 
-1. [Process and Thread](Notes/XV6/XV6ProcessThread.md)
+1. [Process and Thread (with Scheduling)](Notes/XV6/XV6ProcessThread.md)
 
 ## Notes
 
 * [Nachos](Notes/Nachos/Nachos.md)
-  * [Nachos Threads](Notes/Nachos/NachosThreads.md)
+  * [Debugging Nachos](Notes/Nachos/Nachos.md#Debugging-Nachos)
 * [XV6](Notes/XV6/XV6.md)
 * [Trace Code](Notes/TraceCode.md)
 
@@ -43,6 +43,7 @@ Lab 3|[Synchronization Mechanism](Lab/Lab3_SynchronizationMechanism/README.md)|C
 * Operating System Concepts 9ed.
 * Advanced Programming in the UNIX Environment 3ed.
   * [pdf](http://www.codeman.net/wp-content/uploads/2014/04/APUE-3rd.pdf)
+  * [Shichao's Notes APUE](https://notes.shichao.io/apue/)
 
 ### MOOCs
 
@@ -53,9 +54,11 @@ Lab 3|[Synchronization Mechanism](Lab/Lab3_SynchronizationMechanism/README.md)|C
 ### Github
 
 * [xmuliushuo/nachos](https://github.com/xmuliushuo/nachos)
+* [MrOrz/nachos](https://github.com/MrOrz/nachos)
 * [zhanglizeyi/CSE120](https://github.com/zhanglizeyi/CSE120)
   * [**Nachos中文教程.pdf**](https://github.com/zhanglizeyi/CSE120/blob/master/Nachos%E4%B8%AD%E6%96%87%E6%95%99%E7%A8%8B.pdf)
 
 ### Others
 
+* [NachOS 3.4 Doxygen Documentation](https://web.ics.purdue.edu/~cs354/Nachos/index.html)
 * [How can I merge a branch into master but continue working on the branch?](https://stackoverflow.com/questions/26024586/how-can-i-merge-a-branch-into-master-but-continue-working-on-the-branch)

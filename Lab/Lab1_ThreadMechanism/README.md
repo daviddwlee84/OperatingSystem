@@ -34,6 +34,11 @@ That is the `class Thread`. In initial status, Nachos Thread only contain the fo
 * `ThreadStatus status; // ready, running or blocked`
 * `char* name;`
 
+#### Links
+
+* [Nachos Threads](https://users.cs.duke.edu/~narten/110/nachos/main/node12.html)
+* [Nachos Threads](https://www.ida.liu.se/~TDDI04/material/begguide/roadmap/node12.html)
+
 ## Exercise 2: Trace source code
 
 > Read the following code, understand current Nachos thread mechanism
