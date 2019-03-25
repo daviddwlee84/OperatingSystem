@@ -71,6 +71,10 @@ PCB Table: A set for all the process's PCB
 
 ## Process Address Space
 
+![Memory Layout](https://gabrieletolomei.files.wordpress.com/2013/10/memory_layout.jpg)
+
+![virtual address space of a process](https://i.stack.imgur.com/CvITh.png)
+
 * Kernel Space
 * User Space
   * **Stack**
@@ -88,8 +92,10 @@ PCB Table: A set for all the process's PCB
 
 ![Sample 4GB process address space](https://documentation.progress.com/output/ua/OpenEdge_latest/dmadm/images/rfi1401805036469.image)
 
+![In-Memory Layout of a Program (Process)](https://gabrieletolomei.files.wordpress.com/2013/10/program_in_memory2.png)
+
 > For 64-bit OS, in the theory the process address space should be 2⁶⁴ but it's way too big.
-> So in practice the system will give it 2⁴⁸ or 2³⁹.
+> So in practice the system will give it 2⁴⁸ or 2³⁹. (The decision of number is by [**multi-level paging**](MemoryManagement.md#Multi-level-Paging))
 
 ### Virtual Address Space (VAS)
 
@@ -166,4 +172,5 @@ Process hierarchy structure
 ## Resource
 
 * [Wiki - Process management (computing)](https://en.wikipedia.org/wiki/Process_management_(computing))
-* [Process Management](https://notes.shichao.io/lkd/ch3/)
+* [Shichao's Notes Chapter 3. Process Management](https://notes.shichao.io/lkd/ch3/)
+* [**In-Memory Layout of a Program (Process)**](https://gabrieletolomei.wordpress.com/miscellanea/operating-systems/in-memory-layout/)

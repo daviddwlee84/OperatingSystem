@@ -34,6 +34,11 @@ Lab 3|[Synchronization Mechanism](Lab/Lab3_SynchronizationMechanism/README.md)|C
 * [Process](Notes/CourseNote/Process.md)
 * [Thread](Notes/CourseNote/Thread.md)
 * [CPU Scheduling](Notes/CourseNote/CPUScheduling.md)
+* [Executing Environment](Notes/CourseNote/ExecutingEnvironment.md)
+  * Interrupt/Exception/Trap
+    * Timer Interrupt
+  * System Call
+* [Memory Management](Notes/CourseNote/MemoryManagement.md)
 
 ## Resources
 
@@ -44,12 +49,14 @@ Lab 3|[Synchronization Mechanism](Lab/Lab3_SynchronizationMechanism/README.md)|C
 * Advanced Programming in the UNIX Environment 3ed.
   * [pdf](http://www.codeman.net/wp-content/uploads/2014/04/APUE-3rd.pdf)
   * [Shichao's Notes APUE](https://notes.shichao.io/apue/)
+* Computer Systems: A Programmer's Perspective 3ed.
 
 ### MOOCs
 
 * PKU Operating System Principle
   * [Coursera - PKU Operating Systems](https://www.coursera.org/learn/os-pku)
   * [Chinese MOOCS - PKU Operating System Principle](http://www.chinesemooc.org/mooc/4747)
+* [CMU Introduction to Computer Systems (ICS)](https://www.cs.cmu.edu/~213/)
 
 ### Github
 
