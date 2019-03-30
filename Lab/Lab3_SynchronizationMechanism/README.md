@@ -4,6 +4,82 @@
 
 > Research the synchronize mechanism implement in Linux
 
+* [Chapter 3. Locking in the Linux Kernel](https://www.kernel.org/doc/htmldocs/kernel-locking/locks.html)
+
+### mutex
+
+* [`include/linux`]
+  * [`mutex.h`](https://github.com/torvalds/linux/blob/master/include/linux/mutex.h)
+  * [`rwsem-spinlock.h`](https://github.com/torvalds/linux/blob/master/include/linux/rwsem-spinlock.h)
+  * [`bit_spinlock.h`](https://github.com/torvalds/linux/blob/master/include/linux/bit_spinlock.h)
+  * [`hwspinlock.h`](https://github.com/torvalds/linux/blob/master/include/linux/hwspinlock.h)
+
+In `mutex.h` line 53
+
+```c
+struct mutex {
+	atomic_long_t		owner;
+	spinlock_t		wait_lock;
+#ifdef CONFIG_MUTEX_SPIN_ON_OWNER
+	struct optimistic_spin_queue osq; /* Spinner MCS lock */
+#endif
+	struct list_head	wait_list;
+#ifdef CONFIG_DEBUG_MUTEXES
+	void			*magic;
+#endif
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct lockdep_map	dep_map;
+#endif
+};
+```
+
+* [`kernel/locking`](https://github.com/torvalds/linux/tree/master/kernel/locking)
+  * [`mutex.c`](https://github.com/torvalds/linux/blob/master/kernel/locking/mutex.c)
+
+Acquire the mutex (in `mutex.c` line 252)
+
+```c
+void __sched mutex_lock(struct mutex *lock)
+{
+	might_sleep();
+
+	if (!__mutex_trylock_fast(lock))
+		__mutex_lock_slowpath(lock);
+}
+```
+
+```c
+static int __sched
+__mutex_lock(struct mutex *lock, long state, unsigned int subclass,
+	     struct lockdep_map *nest_lock, unsigned long ip)
+{
+	return __mutex_lock_common(lock, state, subclass, nest_lock, ip, NULL, false);
+}
+
+static int __sched
+__ww_mutex_lock(struct mutex *lock, long state, unsigned int subclass,
+		struct lockdep_map *nest_lock, unsigned long ip,
+		struct ww_acquire_ctx *ww_ctx)
+{
+	return __mutex_lock_common(lock, state, subclass, nest_lock, ip, ww_ctx, true);
+}
+```
+
+Every called the `__mutex_lock_common` function (in `mutex.c` line 899)
+
+### Other lock
+
+* rwlock
+* Condition
+* spinlock
+* Hardware related lock...
+
+### Conclusion
+
+Linux made a lots of different locks for its kernel. Typically, it classified into software and hardware usage.
+
+But for user/programmer, I found in the most case they use Pthread library.
+
 ## Exercise 2: Trace source code
 
 > Read the following code, understand current Nachos synchronize mechanism
@@ -34,13 +110,13 @@ Parameter
 
 (Atomic) Operation
 
-* P()
+* `P()`
   * When `value` == 0
     * Put current Thread into waiting queue
     * Sleep current Thread and switch to other Thread
   * When `value` > 0
     * `value--`
-* V()
+* `V()`
   * If there is a Thread waiting for this semaphore
     * Pick one up and set to READY state
   * `value++`
