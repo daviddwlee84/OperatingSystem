@@ -15,6 +15,7 @@ Lab 0|[Build Nachos](Lab/Lab0_BuildNachos)|Setup 32bit cross compile dev. env.
 Lab 1|[Thread Mechanism](Lab/Lab1_ThreadMechanism/README.md)|Multi-thread management
 Lab 2|[Thread Scheduling](Lab/Lab2_ThreadScheduling/README.md)|CPU scheduling
 Lab 3|[Synchronization Mechanism](Lab/Lab3_SynchronizationMechanism/README.md)|Concurrency, mutex lock and semaphore
+Lab 4|[Virtual Memory](Lab/Lab4_VirtualMemory/README.md)|
 
 > [**Quick start with docker!! (recommend)**](Lab/Lab0_BuildNachos/DevEnvironment.md#Use-Docker-with-32bit-image)
 
@@ -33,7 +34,7 @@ Lab 3|[Synchronization Mechanism](Lab/Lab3_SynchronizationMechanism/README.md)|C
 
 * [Process](Notes/CourseNote/Process.md)
 * [Thread](Notes/CourseNote/Thread.md)
-* [CPU Scheduling](Notes/CourseNote/CPUScheduling.md)
+* [CPU Scheduling](Notes/CourseNote/CPUScheduling.md) (Algorithm)
 * [Executing Environment](Notes/CourseNote/ExecutingEnvironment.md)
   * Interrupt/Exception/Trap
     * Timer Interrupt

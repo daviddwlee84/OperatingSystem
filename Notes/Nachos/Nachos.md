@@ -99,3 +99,24 @@ gdb nachos
 * [A Guide to Nachos 5.0j](http://inst.eecs.berkeley.edu/~cs162/sp07/Nachos/walk/walk.html)
 * [Github - Nachos for Java](https://github.com/thinkhy/CS162/tree/master/nachos)
 * [Nachos Projects](https://people.eecs.berkeley.edu/~kubitron/courses/cs162-F05/Nachos/index.html)
+
+### Duke University
+
+* CPS 110 / EE 153 Operating Systems - [Y2K spring](http://db.cs.duke.edu/courses/spring00/cps110/)
+  * [Nachos Project Guide](http://db.cs.duke.edu/courses/spring00/cps110/nachos-guide/)
+    * [Nachos Lab Assignments](http://db.cs.duke.edu/courses/cps110/spring00/nachos-guide/nachos.10.html)
+      * Lab 1: The Trouble with Concurrent Programming
+      * Lab 2: Threads and Synchronization
+      * Lab 3: Programming with Threads
+      * Lab 4: Multiprogrammed Kernel
+      * Lab 5: I/O
+      * Lab 6: Virtual Memory
+
+### Longwood University
+
+* [CMSC 442 Operating Systems](https://www.coursicle.com/longwood/courses/CMSC/442/)
+  * [Lab 1: Semaphores](http://marmorstein.org/~robert/Fall2017/cs442/Lab1-Trains.pdf)
+  * [Lab 2: Building a Thread System](http://marmorstein.org/~robert/Fall2017/cs442/Lab2-NachosThreading.pdf)
+  * [Lab 3: Multiprogramming in NachOS](http://marmorstein.org/~robert/Fall2017/cs442/Lab3-UserSpace.pdf)
+  * [Lab 4: Virtual Memory in NachOS](http://marmorstein.org/~robert/Fall2017/cs442/Lab4-VirtualMemory.pdf)
+  * [Lab 5: File Systems](http://marmorstein.org/~robert/Fall2017/cs442/Lab5-Filesystem.pdf)
