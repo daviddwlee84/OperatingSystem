@@ -41,6 +41,7 @@ Lab 4|[Virtual Memory](Lab/Lab4_VirtualMemory/README.md)|
   * System Call
 * [Memory Management](Notes/CourseNote/MemoryManagement.md)
 * [Page Replacement Algorithm](Notes/CourseNote/PageReplacementAlgo.md)
+* [Synchronization](Notes/CourseNote/Synchronization.md)
 
 ## Resources
 
