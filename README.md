@@ -40,6 +40,7 @@ Lab 4|[Virtual Memory](Lab/Lab4_VirtualMemory/README.md)|
     * Timer Interrupt
   * System Call
 * [Memory Management](Notes/CourseNote/MemoryManagement.md)
+* [Page Replacement Algorithm](Notes/CourseNote/PageReplacementAlgo.md)
 
 ## Resources
 

@@ -31,8 +31,11 @@ Memory Management Hardware
 
 * [Address Binding](#Address-Binding) ([Memory Mapping](#Memory-Mapping)) 地址重定位
 * Page Fault 頁面錯誤
-  * 缺頁異常
+  * Missing page exception 缺頁異常
 * [RSS](#RSS) Resident Set Size 駐留集大小
+* [Paging Daemon](#Paging-Daemon) 分頁守護進程
+* [Memory-Mapped Files](#Memory-Mapped-Files) 內存映射文件
+* [Page Buffering Technique](#Page-Buffering-Algorithm) 頁緩衝技術
 
 Abbreviations about paging
 
@@ -466,7 +469,9 @@ Paging method
 
 #### Demand Paging
 
-The basic idea behind demand paging is that when a process is swapped in, its pages are not swapped in all at once. Rather they are swapped in only when the process needs them. ( on demand. )
+> Demand paging — waiting until a page is actually requested before loading it into RAM. (Page are loaded only when they're demanded during program execution. Pages that are never demanded therefore never loaded into memory)
+
+The basic idea behind demand paging is that when a process is swapped in, its pages are not swapped in all at once. Instead, they are swapped in only when the process needs them. ( on demand. )
 
 > Termed a **lazy swapper** or **pager**
 
@@ -559,6 +564,8 @@ Access with|Virtual Address|Physical Address
 
 ![Figure 9.11 - Graph of page faults versus number of frames.](https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/images/Chapter9/9_11_PageFaultGraph.jpg)
 
+> In Windows, the Resident Set is same as [Working Set](PageReplacementAlgo.md#Working-Set)
+
 ### Page Replacement
 
 * Locked Page Frame
@@ -566,7 +573,7 @@ Access with|Virtual Address|Physical Address
   * Main reason is the cost of page replacement will make the running time uncertain
     * e.g. OS core code, key data structure, I/O buffer...
 
-#### Page Replacement Algorithm
+#### [Page Replacement Algorithm](PageReplacementAlgo.md)
 
 * FIFO Page Replacement
 * Optimal Page Replacement
@@ -577,6 +584,64 @@ Access with|Virtual Address|Physical Address
   * Enhanced Second-Chance Algorithm
 * Counting-Based Page Replacement
 * Page-Buffering Algorithms
+
+#### Paging Summary
+
+* **Basic** - A single page table which stores the page number and the offset
+  * Basic can take up a lot of memory (for a modern system using 4GB of memory, that might amount to 300 MB only for the table) and is therefore impractical.
+* **Hierarchical** - A multi-tiered table which breaks up the virtual address into multiple parts
+  * Hierarchical reduces that memory a lot by only adding subtables that are actually in use. Still, every process has a root page table. And if the memory footprint of the processes is scattered, there may still be a lot of unnecessary entries in secondary tables. This is a far better solution regarding memory than Basic and introduces only a marginal computation increase.
+* **Hashed** - A hashed page table which may often include multiple hashings mapping to the same entry
+  * Hashed does not work because of hash collisions
+* **Inverted** - The logical address also includes the PID, page number and offset. Then the PID is used to find the page in to the table and the number of rows down the table is added to the offset to find the physical address for main memory. (Rough, and probably terrible definition)
+  * Inverted is the solution to make Hashed work. The memory use is very small (as big as a Basic table for a single process, plus some PID and chaining overhead). The problem is, if there is a hash collision (several processes use the same virtual address) you will have to follow the chain information (just as in a linked list) until you find the entry with a matching PID. This may produce a lot of computing overhead in addition to the hash computing, but will keep the memory footprint as small as possible.
+
+### Cleaning Policy
+
+> Different mindset from page replacement
+>
+> Preparing empty pages beforehand
+
+Paging works best when there is an abundant supply of *free page frames* that can be climed as page faults occur.
+
+To ensure a plentiful supply of freepge frames, paging system generally have a *background process*, called the **page daemon**
+
+> Placement (分配、放置) page frame (vs. Replacement (置換、替換、淘汰)) <----> Cleaning (清除、歸還) page frame
+
+#### Paging Daemon
+
+* It sleeps most of the time but is *awakened periodically* to inspect the state of memory.
+* If too few page frames are free, it begins selecting pages to evict using some page replacement algorithm.
+* If these pages have been modified since being loaded, thy are written to disk. (otherwise, just delete it from memeory)
+
+### Page-Buffering Algorithm
+
+Maintain two table. A *pool of free frames* and a *list of modified pages*. (remember which page "was in" the "free frame")
+
+* Don't abandon page when replacement. Rather put them into one of the two tables.
+* Write pages in *modified pages list* back to disk as a cluster (簇) or a batch. (not one by one when they were modified)
+  * thus reduce the I/O operation number => reduce the disk access time
+* The old page can be reused directly from the *free-frame pool* if it is needed before that frame is reused. (sinse the frame contents are not modified when a frame is written to the disk)
+
+> Think: how to use Page Table Entry to achieve
+
+#### Windows - The Zero Page Thread
+
+> The zero page thread runs at the lowest priority and is responsible for zeroing out free pages before moving them to the zeroed page list
+
+[![Stackoverflow - Does Windows clear memory pages?](https://i.stack.imgur.com/jGhN9.png)](https://stackoverflow.com/questions/18385556/does-windows-clear-memory-pages)
+
+### Memory-Mapped Files
+
+> Treat file I/O as routine memory accesses. (this can lead to significant performance)
+>
+> This approach allows a part of the virtual space to be logically associated with with file.
+
+![Figure 9.22 Memory-mapped files.](https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/images/Chapter9/9_23_MemoryMappedFiles.jpg)
+
+> Shared memory can be implemented via shared memory-mapped files ( Windows ), or it can be implemented through a separate process ( Linux, UNIX. )
+
+![Figure 9.23 - Shared memory in Windows using memory-mapped I/O.](https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/images/Chapter9/9_24_WindowsSharedMemory.jpg)
 
 ## A Memory System Example
 
@@ -628,10 +693,11 @@ Modern Operating System 4ed.
   * Ch3.3 Virtual Memory
     * Ch3.3.1 Paging
     * Ch3.3.2 Page Tables
-  * Ch3.4 Page Replacement Algorithms
+  * Ch3.5 Design Issue for Paging Systems
+    * Ch3.5.7 Mapped Files
+    * Ch3.5.8 Cleaning Policy
   * Ch3.6 Implementation Issues
     * Ch3.6.2 Page Fault Handling
-    * Ch3.6.4 Locking Pages in Memory
 
 Operating System Concepts 9ed. Part 3 Memory Management
 
@@ -660,7 +726,9 @@ Operating System Concepts 9ed. Part 3 Memory Management
     * Ch8.7.2 x86-64
 * Ch9 Virtual Memory
   * Ch9.2 Demand Paging
-  * **Ch9.4 Page Replacement** - The algorithms...
+  * Ch9.4 Page Replacement
+    * Ch9.4.7 Page-Buffering Algorithms
+  * Ch9.7 Memory-Mapped Files
 * Notes
   * [Main Memory](https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/8_MainMemory.html)
   * [Virtual Memory](https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/9_VirtualMemory.html)
