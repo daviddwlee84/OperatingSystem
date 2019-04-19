@@ -15,13 +15,21 @@ Lab 0|[Build Nachos](Lab/Lab0_BuildNachos)|Setup 32bit cross compile dev. env.
 Lab 1|[Thread Mechanism](Lab/Lab1_ThreadMechanism/README.md)|Multi-thread management
 Lab 2|[Thread Scheduling](Lab/Lab2_ThreadScheduling/README.md)|CPU scheduling
 Lab 3|[Synchronization Mechanism](Lab/Lab3_SynchronizationMechanism/README.md)|Concurrency, mutex lock and semaphore
-Lab 4|[Virtual Memory](Lab/Lab4_VirtualMemory/README.md)|
+Lab 4|[Virtual Memory](Lab/Lab4_VirtualMemory/README.md)|TLB, demand paging and page replacement
 
 > [**Quick start with docker!! (recommend)**](Lab/Lab0_BuildNachos/DevEnvironment.md#Use-Docker-with-32bit-image)
 
 ### XV6 Source Code Reading
 
 1. [Process and Thread (with Scheduling)](Notes/XV6/XV6ProcessThread.md)
+2. Synchronization Mechanism
+3. Interrupt and System Call
+4. Memory Management
+5. File System
+
+### Additional Task
+
+* [The Reading Room Problem using Monitor](Practice/Synchronization/ReadingRoomMonitor.md)
 
 ## Notes
 
@@ -72,3 +80,4 @@ Lab 4|[Virtual Memory](Lab/Lab4_VirtualMemory/README.md)|
 
 * [NachOS 3.4 Doxygen Documentation](https://web.ics.purdue.edu/~cs354/Nachos/index.html)
 * [How can I merge a branch into master but continue working on the branch?](https://stackoverflow.com/questions/26024586/how-can-i-merge-a-branch-into-master-but-continue-working-on-the-branch)
+* [Operating Systems Study Guide](http://faculty.salina.k-state.edu/tim/ossg/index.html)
