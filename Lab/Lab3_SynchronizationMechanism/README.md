@@ -121,7 +121,7 @@ Parameter
     * Pick one up and set to READY state
   * `value++`
 
-## Exercise 3: Implement (Mutex) Lock and Condtion Variable
+## Exercise 3: Implement (Mutex) Lock and Condition Variable
 
 > Either use primitive *sleep* and *wakeup* (notice to disable the system interrupt),
 > or use *Semaphore* as the only *primitive* (then you won't need to handle interrupt by yourself)
@@ -272,7 +272,7 @@ Other trivial code implementation just checkout `threads/synch.cc`.
 
 And the test of `Lock` I'll using Exercise 4 as an example.
 
-### 3-2 Condtion Variable
+### 3-2 Condition Variable
 
 > Condition variables should be used as a place to wait and be notified.
 > They are not the condition itself and they are not events.

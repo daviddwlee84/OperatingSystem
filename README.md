@@ -29,7 +29,7 @@ Lab 4|[Virtual Memory](Lab/Lab4_VirtualMemory/README.md)|TLB, demand paging and 
 
 ### Additional Task
 
-* [The Reading Room Problem using Monitor](Practice/Synchronization/ReadingRoomMonitor.md)
+* [The Reading Room Problem using Monitor](Practice/Synchronization/ReadingRoomProblem/ReadingRoomMonitor.md)
 
 ## Notes
 

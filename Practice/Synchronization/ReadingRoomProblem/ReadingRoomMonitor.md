@@ -16,6 +16,14 @@ Resources
 * Register Sheet <-- used to protect the seats
 * Seats
 
+Synchronization
+
+* Multiple readers may have want to enter the reading room at the same time
+
+Mutual Exclusion
+
+* Only one reader can modify the register sheet
+
 ## Solution
 
 ### Using Semaphore
@@ -56,44 +64,51 @@ void reader_thread(int reader_num){
 
 ### Using Monitor
 
-Create a monitor with 2 operation. `enter_room()` and `exit_room()`
+Create a monitor with 2 operation. `enter_room()` and `exit_room()`.
+Use a condition variable to solve the synchronization problem.
+Use a mutex to protect the register sheet.
 
 The following is a pseudocode of a monitor.
 
 ```cpp
 #define MAX_SEAT 50
 
-class ReadingRoom : public Monitor
+class ReadingRoom // This is a monitor
 {
   public:
-    // will return the seat number the thread get
+    // will return the seat number to reader thread
     int enter_room(void)
     {
         if (seats == 0) // if no seats, go to sleep
-            go_to_sleep();
+            cond_var.wait();
 
-        register.unlock();
+        register.lock();
         for (int i = 0; i < MAX_SEAT; i++) {
             if (!register_sheet[i]) {
                 empty_seat_num = i;
                 break;
             }
         }
-        register.lock();
+        register_sheet[empty_seat_num] = true;
+        seat -= 1;
+        register.unlock();
         return empty_seat_num;
     };
 
+    // clear the reader seat number on the register sheet
     void exit_room(int seat_num)
     {
-        register.unlock();
-        register_sheet[seat_num] = false;
         register.lock();
-        notify(); // notify next reader to come in if any.
+        register_sheet[seat_num] = false;
+        seat += 1;
+        register.unlock();
+        cond_var.signal(); // notify next reader to come in if any.
     };
   private:
     bool register_sheet[MAX_SEAT] = {0};
     int seats = MAX_SEAT;
     Mutex register;
+    CondVar cond_var;
 }
 ```
 
@@ -103,7 +118,7 @@ The following is a pseudocode of a reader thread.
 ReadingRoom reading_room_monitor;
 
 void reader_thread(void) {
-    reader_seat_number = reading_room_monitor.enter_room();
+    int reader_seat_number = reading_room_monitor.enter_room();
 
     // Reading in the reading room
 
@@ -114,8 +129,17 @@ void reader_thread(void) {
 ## Problems and Answer
 
 1. To describe the reader, how many program do you need, and how many process do you need
+
+    It is able to have more than 50 reader threads.
+
 2. Try to describe the relationship between reader processes using P, V operation
+    * P: when they want to sit on a seat
+    * V: when they leave a seat
 3. Where is the Deadlock most likely to appear
+
+    If someone is going to register the seat but leave (been interrupted, like taking off the pencil).
+    Therefore, no one can adjust the sheet.
+    Or maybe leaving the reading room but forgot to inform next one to come in.
 
 ## Links
 
