@@ -11,11 +11,105 @@
 
 ## Key Point - Synchronization and Mutual Exclusion
 
+Resources
+
+* Register Sheet <-- used to protect the seats
+* Seats
+
 ## Solution
 
 ### Using Semaphore
 
+Use 2 semaphore
+
+1. Semaphore for seat. The initial value is the number of seats. (50 in this case)
+2. Semaphore for register sheet. The initial value is 1. (like a mutex)
+
+The following is a pseudocode of a reader thread. (Assume 50 student with their own id)
+
+```cpp
+#define MAX_SEAT 50
+
+Semaphore seats(MAX_SEAT);
+Semaphore sheet(1);
+
+bool register_sheet[MAX_SEAT] = {0};
+
+void reader_thread(int reader_num){
+    seats.P();
+    sheet.P();
+    // Register on the sheet //
+    register_sheet[reader_num] = true;
+    ///////////////////////////
+    sheet.V();
+
+    // Reading in the reading room
+
+    sheet.P();
+    // Remove the registration off the sheet //
+    register_sheet[reader_num] = false;
+    ///////////////////////////
+    sheet.V();
+    seats.V();
+}
+```
+
 ### Using Monitor
+
+Create a monitor with 2 operation. `enter_room()` and `exit_room()`
+
+The following is a pseudocode of a monitor.
+
+```cpp
+#define MAX_SEAT 50
+
+class ReadingRoom : public Monitor
+{
+  public:
+    // will return the seat number the thread get
+    int enter_room(void)
+    {
+        if (seats == 0) // if no seats, go to sleep
+            go_to_sleep();
+
+        register.unlock();
+        for (int i = 0; i < MAX_SEAT; i++) {
+            if (!register_sheet[i]) {
+                empty_seat_num = i;
+                break;
+            }
+        }
+        register.lock();
+        return empty_seat_num;
+    };
+
+    void exit_room(int seat_num)
+    {
+        register.unlock();
+        register_sheet[seat_num] = false;
+        register.lock();
+        notify(); // notify next reader to come in if any.
+    };
+  private:
+    bool register_sheet[MAX_SEAT] = {0};
+    int seats = MAX_SEAT;
+    Mutex register;
+}
+```
+
+The following is a pseudocode of a reader thread.
+
+```cpp
+ReadingRoom reading_room_monitor;
+
+void reader_thread(void) {
+    reader_seat_number = reading_room_monitor.enter_room();
+
+    // Reading in the reading room
+
+    reading_room_monitor.exit_room(reader_seat_number);
+}
+```
 
 ## Problems and Answer
 
