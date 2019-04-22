@@ -56,13 +56,13 @@ void reader_thread(int reader_num){
     sheet.P();
     // Remove the registration off the sheet //
     register_sheet[reader_num] = false;
-    ///////////////////////////
+    ///////////////////////////////////////////
     sheet.V();
     seats.V();
 }
 ```
 
-### Using Monitor
+### Using Monitor - simulate in C++ like pseudocode
 
 Create a monitor with 2 operation. `enter_room()` and `exit_room()`.
 Use a condition variable to solve the synchronization problem.
@@ -102,7 +102,7 @@ class ReadingRoom // This is a monitor
         register_sheet[seat_num] = false;
         seat += 1;
         register.unlock();
-        cond_var.signal(); // notify next reader to come in if any.
+        cond_var.signal(); // notify next reader to come in if any
     };
   private:
     bool register_sheet[MAX_SEAT] = {0};
@@ -123,6 +123,72 @@ void reader_thread(void) {
     // Reading in the reading room
 
     reading_room_monitor.exit_room(reader_seat_number);
+}
+```
+
+### Using Monitor - assume the operations of the Monitor are mutual exclusive (like Java)
+
+> Thus we don't need `Mutex register` to protect the register_sheet
+
+The following is a pseudocode of a monitor.
+
+```java
+public static final int MAX_SEAT = 50;
+
+public class ReadingRoom { // This is a monitor
+    private seats;
+    private boolean[] register_sheet;
+
+    public ReadingRoom(void) { // Constructor: Initialization
+        seats = MAX_SEAT;
+        register_shee = new boolean[MAX_SEAT];
+        for (int i = 0; i < MAX_SEAT; i++) {
+            register_sheet[i] = false;
+        }
+    }
+
+    // will return the seat number to reader thread
+    public synchronized int enter_room(void) {
+        if (seats == 0) // if no seats, go to sleep
+            wait();
+
+        // find an empty seat
+        for (int i = 0; i < MAX_SEAT; i++) {
+            if (!register_sheet[i]) {
+                empty_seat_num = i;
+                break;
+            }
+        }
+        seat -= 1;
+
+        return empty_seat_num;
+    }
+
+    // clear the reader seat number on the register sheet
+    public synchronized void exit_room(int seat_num) {
+        register_sheet[seat_num] = false;
+        seat += 1;
+
+        notify(); // notify next reader to come in if any
+    }
+}
+```
+
+The following is a pseudocode of a reader thread.
+
+```java
+ReadingRoom reading_room = new ReadingRoom();
+
+class Reader extends Thread {
+    private int reader_seat_number;
+
+    public void run() {
+        reader_seat_number = reading_room.enter_room()
+
+        // Reading in the reading room
+
+        reading_room.exit_room(reader_seat_number)
+    }
 }
 ```
 
