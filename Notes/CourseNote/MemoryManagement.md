@@ -501,6 +501,8 @@ CPU -- passing VA --> MMU -- translating to PA --> Memory or Disk
 
 * [Wiki - Memory management unit](https://en.wikipedia.org/wiki/Memory_management_unit)
 
+![Supercharged Computing MMU](https://superchargedcomputing.files.wordpress.com/2018/02/mmu.png)
+
 ### Memory Mapping
 
 ![Figure 9.6 - Steps in handling a page fault](https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/images/Chapter9/9_06_PageFaultSteps.jpg)
@@ -682,6 +684,7 @@ VA: 0x03D4
 ## Resources
 
 * [5.2 Page Translation](http://www.logix.cz/michal/doc/i386/chp05-02.htm)
+* [Supercharged Computing Notes - Linux Memory Management](https://superchargedcomputing.com/2018/03/01/linux-memory-management/)
 
 ### Book
 
