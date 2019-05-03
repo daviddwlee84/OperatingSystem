@@ -29,7 +29,10 @@ Lab 4|[Virtual Memory](Lab/Lab4_VirtualMemory/README.md)|TLB, demand paging, rep
 
 ### Additional Task
 
-* [The Reading Room Problem using Monitor](Practice/Synchronization/ReadingRoomProblem/ReadingRoomMonitor.md)
+#### Synchronization using Semaphore and Monitor
+
+* [The Reading Room Problem using Monitor](Practice/Synchronization/ClassicalProblem/ReadingRoomMonitor.md)
+* [Other Problems](Practice/Synchronization/ClassicalProblem/OtherProblems.md)
 
 ## Notes
 
@@ -64,6 +67,7 @@ Lab 4|[Virtual Memory](Lab/Lab4_VirtualMemory/README.md)|TLB, demand paging, rep
 * Advanced Programming in the UNIX Environment 3ed.
   * [pdf](http://www.codeman.net/wp-content/uploads/2014/04/APUE-3rd.pdf)
   * [Shichao's Notes APUE](https://notes.shichao.io/apue/)
+  * [huaxz1986/APUE_notes](https://github.com/huaxz1986/APUE_notes)
 * Computer Systems: A Programmer's Perspective 3ed.
 
 ### MOOCs
