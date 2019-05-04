@@ -9,13 +9,13 @@ PKU OS course project and notes based on Nachos and XV6.
 
 ### Nachos Lab
 
-Lab  |Subject|Detail
------|-------|------
-Lab 0|[Build Nachos](Lab/Lab0_BuildNachos)|Setup 32bit cross compile dev. env.
-Lab 1|[Thread Mechanism](Lab/Lab1_ThreadMechanism/README.md)|Multi-thread management
-Lab 2|[Thread Scheduling](Lab/Lab2_ThreadScheduling/README.md)|CPU scheduling
-Lab 3|[Synchronization Mechanism](Lab/Lab3_SynchronizationMechanism/README.md)|Concurrency, mutex lock and semaphore
-Lab 4|[Virtual Memory](Lab/Lab4_VirtualMemory/README.md)|TLB, demand paging, replacement algorithm and user program
+| Lab   | Subject                                                                  | Detail                                                     |
+| ----- | ------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| Lab 0 | [Build Nachos](Lab/Lab0_BuildNachos)                                     | Setup 32bit cross compile dev. env.                        |
+| Lab 1 | [Thread Mechanism](Lab/Lab1_ThreadMechanism/README.md)                   | Multi-thread management                                    |
+| Lab 2 | [Thread Scheduling](Lab/Lab2_ThreadScheduling/README.md)                 | CPU scheduling                                             |
+| Lab 3 | [Synchronization Mechanism](Lab/Lab3_SynchronizationMechanism/README.md) | Concurrency, mutex lock and semaphore                      |
+| Lab 4 | [Virtual Memory](Lab/Lab4_VirtualMemory/README.md)                       | TLB, demand paging, replacement algorithm and user program |
 
 > [**Quick start with docker!! (recommend)**](Lab/Lab0_BuildNachos/DevEnvironment.md#Use-Docker-with-32bit-image)
 
@@ -69,6 +69,11 @@ Lab 4|[Virtual Memory](Lab/Lab4_VirtualMemory/README.md)|TLB, demand paging, rep
   * [Shichao's Notes APUE](https://notes.shichao.io/apue/)
   * [huaxz1986/APUE_notes](https://github.com/huaxz1986/APUE_notes)
 * Computer Systems: A Programmer's Perspective 3ed.
+
+#### Nachos
+
+* [Nachos Project Guide](https://cs.nyu.edu/courses/spring05/V22.0202-001/nachos-labs.pdf)
+* [Nachos Study Book](https://www.scribd.com/document/40080586/Nachos-Study-Book) - [another link](https://kupdf.net/download/nachos-study-book_58c3e7c6dc0d604853339028_pdf)
 
 ### MOOCs
 

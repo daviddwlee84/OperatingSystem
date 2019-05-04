@@ -72,6 +72,10 @@ Computer Science 315 Lecture Notes
 ### Book
 
 * [MIPS Assembly Language Programming using QtSpim](http://www.egr.unlv.edu/~ed/MIPStextSMv11.pdf)
+* Nachos Study Book Ch6.4 MIPS Simulator
+  * Ch6.4.1 Components of MIPS Machine
+  * Ch6.4.2 Instruction Interpretation
+  * Ch6.4.3 MIPS Instruction Set
 
 ### Wikipedia
 

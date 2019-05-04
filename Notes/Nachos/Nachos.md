@@ -4,12 +4,73 @@ Not Another Completely Heuristic Operating System, or Nachos, is instructional s
 
 * [Wiki - Not Another Completely Heuristic Operating System](https://en.wikipedia.org/wiki/Not_Another_Completely_Heuristic_Operating_System)
 
+## Dependency Graph
+
+In `Makefile.common`
+
+```makefile
+# The dependency graph between assignments is:
+#   1. THREADS before everything else
+#   2. USERPROG must come before VM
+#   3. USERPROG can come before or after FILESYS, but if USERPROG comes
+#      before (as in this distribution), then it must define FILESYS_STUB
+#
+#   Other than that, you have complete flexibility.
+```
+
 ## Directory Structure
+
+Makefiles
+
+* Makefile
+* Makefile.common
+* Makefile.dep
+
+Folder
+
+* bin: for MIPS interpreter (coff2noff)
+* machine: for MIPS environment simulation
+* threads: main and threads
+* userprog: user-space program
+* test: some test user program
+* filesys
+* network
+* vm
 
 ## Executables
 
-* `nachos`
+* `nachos`: one for each compile (subdirectory test)
 * `coff2noff`: converting a COFF (Common Object File Format) file to a NOFF file (Nachos Object File Format)
+
+### coff2noff
+
+Nachos runs user programs in their own private address space. Nachos can run any MIPS binary.
+
+In Unix, "a.out" files are stored in "coff" format. Nachos requires that executables be in the simpler "Noff" format.
+
+Use the `coff2noff` program to convert binary. Consult the `code/test/Makefile` for details.
+
+When executing a program, Nachos
+
+1. creates an address space
+2. copies the contents of the instruction
+3. initialized variable segments into the address space
+4. (the uninitialized variable section doesn't need to be read from the file, since it is defined to contain all zeros)
+
+#### Noff
+
+Noff-format files consist of four parts
+
+1. Noff header
+   * describes the contents of the rest of the file
+   * giving information about the program's instruction, initialized variables and uninitialized variables
+
+Noff header resides at the very start of the file. And containes pointers to the remaining section.
+
+* noffMagic: a reserved "magic" number that indicates that the file is in Noff format. (first 4 bytes of the file)
+* virtualAddr: what virtual address that segment begins at (normally zero)
+* inFileAddr: pointer within the Noff file where that section actuall begins (so that Nachos can read it into memory before execution begins)
+* size:the size (in bytes of that segment)
 
 ## Debugging Nachos
 
@@ -81,6 +142,11 @@ gdb nachos
     * Understanding the Linux Kernel, Third Edition (Supplemental)
     * Linux Kernel Development 3rd Edition (Supplemental)
   * [Semester archives](https://inst.eecs.berkeley.edu/~cs162/archives.html)
+  * [CS162 Spring 2007 Phases](https://inst.eecs.berkeley.edu/~cs162/sp07/Nachos/phases.shtml) - Using Java
+    * [Nachos Phase 1: Build a thread system](https://inst.eecs.berkeley.edu/~cs162/sp07/Nachos/phase1.shtml)
+    * [Nachos Phase 2: Multiprogramming](https://inst.eecs.berkeley.edu/~cs162/sp07/Nachos/phase2.shtml)
+    * [Nachos Phase 3: Caching and Virtual Memory](https://inst.eecs.berkeley.edu/~cs162/sp07/Nachos/phase3.shtml)
+    * [Nachos Phase 4: Networks And Distributed Systems](https://inst.eecs.berkeley.edu/~cs162/sp07/Nachos/phase4.shtml)
 
 ### University of Waterloo
 
@@ -90,6 +156,7 @@ gdb nachos
 #### C++
 
 * [A Road Map Through Nachos](https://users.cs.duke.edu/~narten/110/nachos/main/main.html)
+  * [**pdf**](http://www.cs.kent.edu/~javed/class-OS10S/nachos-roadmap.pdf)
 * [Github - Nachos 4.1](https://github.com/tfriedel/nachos)
 * [University of Chicago Nachos](http://people.cs.uchicago.edu/~odonnell/OData/Courses/CS230/NACHOS/reading-code.html)
 * [**Build Nachos 4.1**](http://web-ext.u-aizu.ac.jp/~yliu/teaching/os/lab01.html)
@@ -97,6 +164,7 @@ gdb nachos
 #### JAVA
 
 * [A Guide to Nachos 5.0j](http://inst.eecs.berkeley.edu/~cs162/sp07/Nachos/walk/walk.html)
+  * [pdf](https://inst.eecs.berkeley.edu/~cs162/sp08/Nachos/walk/walk.pdf)
 * [Github - Nachos for Java](https://github.com/thinkhy/CS162/tree/master/nachos)
 * [Nachos Projects](https://people.eecs.berkeley.edu/~kubitron/courses/cs162-F05/Nachos/index.html)
 
