@@ -4,27 +4,90 @@
 
 ### Process Parallelism
 
+> All the problem is caused by "parallelism"
+
+Some time a single line of C code. Is multiple instruction in Assembly. => If the execution *under some scenario* being interrupt *on specific step* then may cause error.
+
 #### Comparison between sequential system and parallel system
+
+### Two Main Problem Caused by Parallelism
+
+#### Mutual Exclusion 互斥 - Shared Memory/Data (Interprocess Communication)
+
+* [Wiki - Mutual exclusion](https://en.wikipedia.org/wiki/Mutual_exclusion)
+
+#### Synchronization 同步
 
 ## Race Condition
 
+### Example of Spooling - Print Job Request
+
+![Example of Spooling](https://images.slideplayer.com/20/6005967/slides/slide_2.jpg)
+
+* [Wiki - Spooling](https://en.wikipedia.org/wiki/Spooling)
+
 ## Critical Section/Region
 
-### Solution of Mutual Exclusion
+Overview
 
-#### Software approach
+* Approach
+  * Software => Programming skill
+    * Dekker
+    * Peterson
+  * Hardware
+    * Block Interrupt
+    * TSL(XCHG) Instruction
 
-* Dekker
-* Peterson
+* [Wiki - Critical section](https://en.wikipedia.org/wiki/Critical_section)
 
-#### Hardware approach
+### 4 Condition of Using Critical Region
 
-* Block Interrupt
-* TSL(XCHG) Instruction
+* 
+* 
+* 
+* 
+
+### Software Solutions
+
+#### Attemption 1
+
+#### Attemption 2
+
+#### Attemption 3
+
+#### Dekker Solution
+
+#### Peterson Solution
+
+### Hardware Solution
+
+#### Block Interrupt
+
+#### Special Instruction
+
+**TSL**: Test And Set Lock
+
+**XCHG**: Exchange Data
+
+### Summary - Spinlock
+
+#### Busy Waiting
+
+In single CPU system
+
+* Must prevent
+
+In multiple CPU system
+
+* Sometimes works better
+  * If all the critical region is very short
+  * Don't need context switch (process stay on the CPU)
 
 ## Semaphore
 
 ### P, V Operation
+
+> Primitive / Atomic Action => Uninterruptable
 
 #### P
 
@@ -32,11 +95,60 @@
 
 ## Monitor
 
+> Nowaday can be implemented as a class (it was been invented before object-oriented concept)
+>
+> Monitor is a "Language-based" Mechanism
+
 ### Wait and Signal Operation
 
-### MESA Monitor
+### Consider Parallelism Problem
 
-## Lock and Condition Variable
+Mutual Exclusion => Maintain by Compiler
+
+Synchronization => Maintain by Programmer (use Wait and Signal operation)
+
+### Different Detail Monitor Implementation
+
+#### Hoare Monitor
+
+![Wiki A Hoare style monitor with two condition variables a and b](https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Monitor_%28synchronization%29-SU.png/200px-Monitor_%28synchronization%29-SU.png)
+
+#### MESA Monitor
+
+Signal() -> Notify()
+
+![Wiki MESA style monitor](https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Monitor_%28synchronization%29-Mesa.png/200px-Monitor_%28synchronization%29-Mesa.png)
+
+#### Hansen Monitor
+
+### Solving Producer-Consumer Problem with Monitor
+
+### Monitor Implementation
+
+* Directly construct monitor -> Efficient but need support of programming language
+* Indirectly construct monitor -> Use existing synchronization mechanism to implement
+  * Semaphore
+
+#### Monitor in Java
+
+![Wiki A Java style monitor](https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Monitor_%28synchronization%29-Java.png/200px-Monitor_%28synchronization%29-Java.png)
+
+## Mutex Lock and Condition Variable using Pthread
+
+> Pthread is a **user space** library. So you should assume OS don't know the thread that you're blocking.
+
+### Mutex Lock
+
+#### Why implement pthread_mutex_trylock
+
+### Condition Variable
+
+#### Why use While instead of If on pthread_cond_wait
+
+* [Stackoverflow - Why do you need a while loop while waiting for a condition variable](https://stackoverflow.com/questions/7766057/why-do-you-need-a-while-loop-while-waiting-for-a-condition-variable)
+* [Wiki - Spurious wakeup](https://en.wikipedia.org/wiki/Spurious_wakeup)
+
+### Wait and Signal
 
 ## Implementation
 
@@ -57,7 +169,26 @@
 
 ## Interprocess Communication (IPC)
 
+* Message Passing 消息傳遞
+* Shared Memory 共享記憶體
+* Pipeline 管道
+* 套接字
+* RPC 遠程過程調用
+
+### Message Passing
+
+### Shared Memory
+
+### Pipeline
+
+## Classic Problem
+
+* [Producer-Consumer](../../Lab/Lab3_SynchronizationMechanism/README.md#Producer-consumer-Problem-(Bounded-buffer-Problem))
+* [Operating Systems Study Guide - 4.3. Classic Synchronization Problems](http://faculty.salina.k-state.edu/tim/ossg/IPC_sync/classic_problems.html)
+
 ## Resources
+
+* [Wiki - Monitor (synchronization)](https://en.wikipedia.org/wiki/Monitor_(synchronization))
 
 ### Book
 
@@ -90,3 +221,7 @@ Modern Operating Systems 4ed.
   * Ch2.3.7 Monitors 管程
   * Ch2.3.8 Message Passing
   * Ch2.3.9 Barriers
+
+### Library
+
+* [Ice library - IceUtil::Monitor - The C++ Monitor Class](https://doc.zeroc.com/ice/3.7/language-mappings/c++98-mapping/the-c++98-utility-library/threads-and-concurrency-with-c++/the-c++-monitor-class)
