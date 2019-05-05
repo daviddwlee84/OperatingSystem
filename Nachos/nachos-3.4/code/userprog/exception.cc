@@ -78,8 +78,11 @@ ExceptionHandler(ExceptionType which)
         DEBUG('a', "Shutdown, initiated by user program.\n");
 #ifdef USE_TLB
         // Lab4: Used for calculate TLB Miss rate (debug purpose)
-        printf("TLB Miss: %d, TLB Hit: %d, Total Translate: %d, TLB Miss Rate: %.2lf%%\n",
-            TLBMissCount, TranslateCount - TLBMissCount, TranslateCount, (double)TLBMissCount/TranslateCount*100);
+        DEBUG('T', "TLB Miss: %d, TLB Hit: %d, Total Instruction: %d, Total Translate: %d, TLB Miss Rate: %.2lf%%\n",
+            TLBMissCount, TranslateCount-2*TLBMissCount, TranslateCount-TLBMissCount, TranslateCount, (double)(TLBMissCount*100)/(TranslateCount-TLBMissCount));
+#endif
+#ifdef USE_BITMAP
+        machine->freeMem(); // ONLY USE FOR TEST Lab4 Exercise4
 #endif
         interrupt->Halt();
     } else {

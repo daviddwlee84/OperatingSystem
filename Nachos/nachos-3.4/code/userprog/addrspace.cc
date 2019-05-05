@@ -89,7 +89,15 @@ AddrSpace::AddrSpace(OpenFile *executable)
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
 	pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
-	pageTable[i].physicalPage = i;
+
+// Lab4: Global data structure for memory management
+#if USE_BITMAP
+    pageTable[i].physicalPage = machine->allocateFrame();
+#elif USE_LINKED_LIST
+    // TODO
+#else
+	pageTable[i].physicalPage = i; // Original linear allocation
+#endif
 	pageTable[i].valid = TRUE;
 	pageTable[i].use = FALSE;
 	pageTable[i].dirty = FALSE;
@@ -97,6 +105,9 @@ AddrSpace::AddrSpace(OpenFile *executable)
 					// a separate page, we could set its 
 					// pages to be read-only
     }
+#if USE_BITMAP
+    DEBUG('M', "Bitmap after allocate: %08X\n", machine->bitmap);
+#endif
     
 // zero out the entire address space, to zero the unitialized data segment 
 // and the stack segment

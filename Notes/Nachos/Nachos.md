@@ -105,6 +105,8 @@ const char dbgNet = 'n'; 		// network emulation (NETWORK)
 > I've add `c` for (random) Context Switch used in `threads/system.cc`.
 > I've add `b` for Barrier related in `threads/synch.cc`
 > I've add `w` for Reader-Writer Lock related in `threads/synch.cc`
+> I've add `T` for TLB handling in `machine/exception.cc`
+> I've add `M` for memory management (allocation, data structure (e.g. bitmap)) in `machine/machine.cc`
 
 #### Single Stepping
 

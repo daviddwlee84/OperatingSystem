@@ -71,6 +71,13 @@ Machine::Machine(bool debug)
     pageTable = NULL;
 #endif
 
+    // Lab4: Global data structure for memory management
+#if USE_BITMAP
+    bitmap = 0; // Initialize
+#elif USE_LINKED_LIST
+    // TODO
+#endif
+
     singleStep = debug;
     CheckEndian();
 }
@@ -212,3 +219,47 @@ void Machine::WriteRegister(int num, int value)
 	registers[num] = value;
     }
 
+/**********************************************************************/
+/*************** Lab4: Memory Management Global Object ****************/
+/**********************************************************************/
+
+#if USE_BITMAP
+//----------------------------------------------------------------------
+// Machine::allocateFrame
+//   	Find a free physical page frame to allocate memory.
+//      If not found, return -1.
+//----------------------------------------------------------------------
+
+int
+Machine::allocateFrame(void)
+{
+    int shift;
+    for (shift = 0; shift < NumPhysPages; shift++) {
+        if (!(bitmap >> shift & 0x1)) { // found empty bit
+            bitmap |= 0x1 << shift; // set the bit to used
+            DEBUG('M', "Allocate physical page frame: %d\n", shift);
+            return shift;
+        }
+    }
+    DEBUG('M', "Out of physical page frame!\n", shift);
+    return -1;
+}
+
+//----------------------------------------------------------------------
+// Machine::freeMem
+//   	Free current page table physical page frames.
+//----------------------------------------------------------------------
+void
+Machine::freeMem(void)
+{
+    for (int i = 0; i < pageTableSize; i++) {
+        int pageFrameNum = pageTable[i].physicalPage;
+        bitmap &= ~(0x1 << pageFrameNum);
+        DEBUG('M', "Free physical page frame: %d\n", pageFrameNum);
+    }
+    DEBUG('M', "Bitmap after freed: %08X\n", bitmap);
+}
+
+#elif USE_LINKED_LIST
+		// TODO
+#endif

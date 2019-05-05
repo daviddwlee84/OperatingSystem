@@ -91,6 +91,10 @@ class Instruction {
                      // Immediates are sign-extended.
 };
 
+// Lab4: Global data structure for memory management
+#define USE_BITMAP TRUE
+// #define USE_LINKED_LIST TRUE
+
 // The following class defines the simulated host workstation hardware, as 
 // seen by user programs -- the CPU registers, main memory, etc.
 // User programs shouldn't be able to tell that they are running on our 
@@ -181,6 +185,15 @@ class Machine {
 
     TranslationEntry *pageTable;
     unsigned int pageTableSize;
+
+		// Lab4: Global data structure for memory management
+#if USE_BITMAP
+		unsigned int bitmap; // This can record 32 allocation units (sizeof(int)*8 = 32). Current NumPhysPages is 32 too.
+		int allocateFrame(void); // Find a empty allocation unit to put physical page frames
+		void freeMem(void); // Free current page table physical page frames
+#elif USE_LINKED_LIST
+		// TODO
+#endif
 
   private:
     bool singleStep;		// drop back into the debugger after each

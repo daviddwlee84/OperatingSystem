@@ -655,10 +655,10 @@ There are preparations before test the algorithms
     * TLB_CLOCK
     * TLB_LRU (TODO)
 
-And then I'll test the program without verbose information.
+And then I'll test the program without other verbose information. Enable debug flag `T` to show the TLB handling message (miss rate)
 
 ```sh
-docker run nachos_userprog nachos/nachos-3.4/code/userprog/nachos -x nachos/nachos-3.4/code/test/fibonacci
+docker run nachos_userprog nachos/nachos-3.4/code/userprog/nachos -d T -x nachos/nachos-3.4/code/test/fibonacci
 ```
 
 > Alternatively, you can build the docker with
@@ -671,7 +671,7 @@ docker run nachos_userprog nachos/nachos-3.4/code/userprog/nachos -x nachos/nach
 > and execute it using
 >
 > ```sh
-> docker run nachos nachos/nachos-3.4/code/userprog/nachos -x nachos/nachos-3.4/code/test/fibonacci
+> docker run nachos nachos/nachos-3.4/code/userprog/nachos -d T -x nachos/nachos-3.4/code/test/fibonacci
 > ```
 
 #### FIFO
@@ -705,14 +705,14 @@ Result:
 TLBSize = 2
 
 ```txt
-TLB Miss: 87, TLB Hit: 851, Total Translate: 938, TLB Miss Rate: 9.28%
+TLB Miss: 87, TLB Hit: 764, Total Instruction: 851, Total Translate: 938, TLB Miss Rate: 10.22%
 Machine halting!
 ```
 
-Default TLBSize
+Default TLBSize (= 4)
 
 ```txt
-TLB Miss: 6, TLB Hit: 824, Total Translate: 830, TLB Miss Rate: 0.72%
+TLB Miss: 6, TLB Hit: 818, Total Instruction: 824, Total Translate: 830, TLB Miss Rate: 0.73%
 ```
 
 #### Clock
@@ -763,7 +763,7 @@ TLBAlgoClock(TranslationEntry page)
 Result:
 
 ```txt
-TLB Miss: 6, TLB Hit: 824, Total Translate: 830, TLB Miss Rate: 0.72%
+TLB Miss: 6, TLB Hit: 818, Total Instruction: 824, Total Translate: 830, TLB Miss Rate: 0.73%
 ```
 
 #### LRU
@@ -781,6 +781,11 @@ Thus the performance of FIFO and Clock algorithm are the same.
 > When application program is starting up it will initialize it; When context switch, it will also do reserve and resume.
 > (Such that `Class Machine::TranslationEntry* pageTable` will always pointing at the current running Thread's page table)
 
+As mention in [TLB Technique and Address Binding](#TLB-Technique-and-Address-Binding) we know that system has the pointer to current thread page table.
+But we may have multiple address space (one for each thread) in the future.
+
+We have seen in [Executing User Program](#Executing-User-Program). We will call `AddrSpace::RestoreState()` to assign the current thread page table to machine page table pointer.
+
 ### Exercise 4: Global data structure for memory management
 
 > Impelement a global data structure for memory allocation and recycle, and record the current memory usage status
@@ -792,10 +797,135 @@ Thus the performance of FIFO and Clock algorithm are the same.
 > e.g. Bitmap(位圖)
 >
 > [![Bitmap](https://www.cs.nuim.ie/~dkelly/CS240-05/Day%208%20Slides_files/image009.gif)](http://www.cs.nuim.ie/~dkelly/CS240-05/Day%208%20Slides.htm)
+>
+> * [Memory Management with Bitmaps and Linked List](http://www.idc-online.com/technical_references/pdfs/information_technology/Memory_Management_with_Bitmaps_and_Linked_List.pdf)
+> * [OS Memory Management with Bitmaps](https://codescracker.com/operating-system/memory-management-with-bitmaps.htm)
+> * [OS Memory Management with Linked Lists](https://codescracker.com/operating-system/memory-management-with-linked-lists.htm)
+
+I have used some define as the switch for choosing the data structure for memory management. And just enable in `code/machine/machine.h`
+
+* USE_BITMAP
+* USE_LINKED_LIST (TODO)
+
+#### Bitmap
+
+I've divide the memory up into *allocation unit* with `NumPhysPages` and thus use `unsigned int` to store the bitmap.
+
+Corresponding to each *allocation unit* is a bit in the bitmap:
+
+* zero (0) only if the unit is free
+* one (1) only if the unit is occupied
+
+Add the following data structure in `class Machine` in `code/machine/machine.h`
+
+```cpp
+class Machine {
+  public:
+  
+    ...
+
+    unsigned int bitmap; // This can record 32 allocation units (sizeof(int)*8 = 32). Current NumPhysPages is 32 too.
+    int allocateFrame(void); // Find a empty allocation unit to put physical page frames
+    void freeMem(void); // Free current page table physical page frames
+}
+```
+
+And implement `Machine::allocateFrame` and `Machine::freeMem` in `code/machine/machine.cc`
+
+* `Machine::allocateFrame` is used to find an empty physical page frame to allocate
+
+    ```cpp
+    //----------------------------------------------------------------------
+    // Machine::allocateFrame
+    //   	Find a free physical page frame to allocate memory.
+    //      If not found, return -1.
+    //----------------------------------------------------------------------
+
+    int
+    Machine::allocateFrame(void)
+    {
+        int shift;
+        for (shift = 0; shift < NumPhysPages; shift++) {
+            if (!(bitmap >> shift & 0x1)) { // found empty bit
+                bitmap |= 0x1 << shift; // set the bit to used
+                DEBUG('M', "Allocate physical page frame: %d\n", shift);
+                return shift;
+            }
+        }
+        DEBUG('M', "Out of physical page frame!\n", shift);
+        return -1;
+    }
+    ```
+
+* `Machine::freeMem` is used when we want to release the page frames occupied by current page table
+
+#### Free Linked List
+
+TODO
+
+#### Other Modification
+
+1. We need to modify the default memory allocation from linear allocation to our own logic when initializing `AddrSpace` in `code/userprog/addrspace.cc`.
+   * Bitmap
+
+        ```c
+        pageTable[i].physicalPage = machine->allocateFrame();
+        ```
+
+2. We also need to free the memory and clear the record in our data structure.
+   * Bitmap
+
+        > At current phase, I've called the `Machine::freeMem` in the `Halt` system call in `code/machine/exception.cc` for test purpose
+
+        ```c
+        if ((which == SyscallException) && (type == SC_Halt)) {
+
+            ...
+
+            machine->freeMem(); // ONLY USE FOR TEST Lab4 Exercise4
+            interrupt->Halt();
+        }
+        ```
+
+Result
+
+> I've add `M` for memory management debug flag
+
+```sh
+docker run nachos_userprog nachos/nachos-3.4/code/userprog/nachos -d M -x nachos/nachos-3.4/code/test/halt
+```
+
+* Bitmap
+
+    ```txt
+    Allocate physical page frame: 0
+    Allocate physical page frame: 1
+    Allocate physical page frame: 2
+    Allocate physical page frame: 3
+    Allocate physical page frame: 4
+    Allocate physical page frame: 5
+    Allocate physical page frame: 6
+    Allocate physical page frame: 7
+    Allocate physical page frame: 8
+    Allocate physical page frame: 9
+    Bitmap after allocate: 000003FF
+    Free physical page frame: 0
+    Free physical page frame: 1
+    Free physical page frame: 2
+    Free physical page frame: 3
+    Free physical page frame: 4
+    Free physical page frame: 5
+    Free physical page frame: 6
+    Free physical page frame: 7
+    Free physical page frame: 8
+    Free physical page frame: 9
+    Bitmap after freed: 00000000
+    Machine halting!
+    ```
 
 ### Exercise 5: Support multi-threads
 
-> In the current Nachos, only single Thread can exist in memory. We need to break this restriction
+> In the current Nachos, only single Thread can exist in memory. We need to break this restriction.
 
 ### Exercise 6: Missing page interrupt handling
 
@@ -833,6 +963,22 @@ docker cp 987fea7d8235:/nachos/nachos-3.4/code/test/fibonacci Nachos/nachos-3.4/
 
 * [Docker: Cp Command – Copy File ( To | From ) Container](https://www.shellhacks.com/docker-cp-command-copy-file-to-from-container/)
 * [Stackoverflow - How to copy files from local machine to docker container on windows](https://stackoverflow.com/questions/40313633/how-to-copy-files-from-local-machine-to-docker-container-on-windows)
+
+### Hexadecimal value in C
+
+```c
+unsigned char hexVar = 0xAB;
+
+printf("%x\n", hexVar);
+printf("%X\n", hexVar);
+```
+
+* [Working with Hexadecimal values in C programming language](https://www.includehelp.com/c/working-with-hexadecimal-values-in-c-programming-language.aspx)
+
+## Improvable Todos
+
+* [ ] [LRU](#LRU)
+* [ ] [Free Linked List](#Free-Linked-List)
 
 ## Resources
 
