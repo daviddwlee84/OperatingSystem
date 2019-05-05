@@ -35,7 +35,7 @@ CPP = gcc -E
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR)
 
-all: halt shell matmult sort
+all: halt shell matmult sort fibonacci
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.c > strt.s
@@ -65,3 +65,10 @@ matmult.o: matmult.c
 matmult: matmult.o start.o
 	$(LD) $(LDFLAGS) start.o matmult.o -o matmult.coff
 	../bin/coff2noff matmult.coff matmult
+
+# For Lab4: Test the TLB Miss Rate
+fibonacci.o: fibonacci.c
+	$(CC) $(CFLAGS) -c fibonacci.c
+fibonacci: fibonacci.o start.o
+	$(LD) $(LDFLAGS) start.o fibonacci.o -o fibonacci.coff
+	../bin/coff2noff fibonacci.coff fibonacci
