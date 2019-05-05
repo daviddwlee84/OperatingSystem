@@ -34,6 +34,10 @@
 #include "addrspace.h"
 #include "system.h"
 
+// Lab4: Used for calculate TLB Miss rate (debug purpose)
+int TLBMissCount = 0;
+int TranslateCount = 0;
+
 // Routines for converting Words and Short Words to and from the
 // simulated machine's format of little endian.  These end up
 // being NOPs when the host machine is also little endian (DEC and Intel).
@@ -96,6 +100,7 @@ Machine::ReadMem(int addr, int size, int *value)
     exception = Translate(addr, &physicalAddress, size, FALSE);
     if (exception != NoException) {
 	machine->RaiseException(exception, addr);
+	TLBMissCount++; // Lab4: Used for calculate TLB Miss rate (debug purpose)
 	return FALSE;
     }
     switch (size) {
@@ -145,6 +150,7 @@ Machine::WriteMem(int addr, int size, int value)
     exception = Translate(addr, &physicalAddress, size, TRUE);
     if (exception != NoException) {
 	machine->RaiseException(exception, addr);
+	TLBMissCount++; // Lab4: Used for calculate TLB Miss rate (debug purpose)
 	return FALSE;
     }
     switch (size) {
@@ -192,6 +198,8 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
     unsigned int pageFrame;
 
     DEBUG('a', "\tTranslate 0x%x, %s: ", virtAddr, writing ? "write" : "read");
+
+	TranslateCount++; // Lab4: Used for calculate TLB Miss rate (debug purpose)
 
 // check for alignment errors
     if (((size == 4) && (virtAddr & 0x3)) || ((size == 2) && (virtAddr & 0x1))){

@@ -418,7 +418,7 @@ TLBMissHandler(int virtAddr)
 > Test using the executable test program in `code/test`.
 > (If the file is too big will get `Assertion failed: line 81, file "../userprog/addrspace.cc"`)
 >
-> Using docker (compiled with `cd Lab/Lab0_BuildNachos; ./build_subdir_nachos.sh userprog`)
+> Using docker (build with `cd Lab/Lab0_BuildNachos; ./build_subdir_nachos.sh userprog`)
 >
 > ```sh
 > docker run nachos_userprog nachos/nachos-3.4/code/userprog/nachos -d am -x nachos/nachos-3.4/code/test/halt
@@ -585,6 +585,196 @@ And it shows that the TLB mechanism worked!
 
 > Implement at least two replacement algorithm, compare the replacement times between two algorithm.
 
+There are preparations before test the algorithms
+
+1. TLB Miss Rate
+
+    To show the TLB Miss Rate. I've declare `TLBMissCount` and `TranslateCount` in `code/machine/machine.h` and initialize in `code/machine/translate.cc`.
+
+    * When call the `Machine::Translate()` the `TranslateCount++`.
+    * When raise exception in `Machine::ReadMem()` or `Machine::WriteMem()` the `TLBMissCount++`.
+
+    In the end, calculate the TLB Miss Rate when system halt (in `code/machine/exception.cc`). This will do only when enable TLB.
+
+2. Custom user program
+
+    I have made a customized user program to test the miss rate.
+
+    > Because `code/test/halt` is too short to observe the TLB Miss. But the other program is too large for default Nachos (I'll use them after finish demand paging in Exercise 7).
+
+    `code/test/fibonacci.c`
+
+    ```c
+    /* fibonacci.c
+    *	Simple program to test the TLB miss rate (Lab 4) that calculate the fibonacci series
+    */
+
+    #include "syscall.h"
+
+    #define N 20
+
+    int
+    main()
+    {
+        int i;
+        int result[N];
+        result[0] = 0;
+        result[1] = 1;
+        for (i = 2; i < N; i++)
+        {
+            result[i] = result[i-1] + result[i-2];
+        }
+        // Exit(result[i]); // because we haven't implement Exit syscall yet
+        Halt();
+    }
+    ```
+
+    And add the following things in `code/test/Makefile`
+
+    ```makefile
+    all: ... fibonacci
+
+    ...
+
+    # For Lab4: Test the TLB Miss Rate
+    fibonacci.o: fibonacci.c
+        $(CC) $(CFLAGS) -c fibonacci.c
+    fibonacci: fibonacci.o start.o
+        $(LD) $(LDFLAGS) start.o fibonacci.o -o fibonacci.coff
+        ../bin/coff2noff fibonacci.coff fibonacci
+    ```
+
+    This will need to compile the whole project but I've done that and copy the binary/executable file to local.
+    So it's totally fine to just compile the userprog subdirectory using my docker build script.
+
+3. Switch for each algorithm
+
+    I have used some define as the switch for choosing the replacement algorithm. And this will also manage some global variables, etc.
+
+    * TLB_FIFO
+    * TLB_CLOCK
+    * TLB_LRU (TODO)
+
+And then I'll test the program without verbose information.
+
+```sh
+docker run nachos_userprog nachos/nachos-3.4/code/userprog/nachos -x nachos/nachos-3.4/code/test/fibonacci
+```
+
+> Alternatively, you can build the docker with
+>
+> ```sh
+> cd Lab/Lab0_BuildNachos;
+> ./build_modified_nachos.sh
+> ```
+>
+> and execute it using
+>
+> ```sh
+> docker run nachos nachos/nachos-3.4/code/userprog/nachos -x nachos/nachos-3.4/code/test/fibonacci
+> ```
+
+#### FIFO
+
+```c
+void
+TLBAlgoFIFO(TranslationEntry page)
+{
+    int TLBreplaceIdx = -1;
+    // Find the empty entry
+    for (int i = 0; i < TLBSize; i++) {
+        if (machine->tlb[i].valid == FALSE) {
+            TLBreplaceIdx = i;
+            break;
+        }
+    }
+    // If full then move everything forward and remove the last one
+    if (TLBreplaceIdx == -1) {
+        TLBreplaceIdx = TLBSize - 1;
+        for (int i = 0; i < TLBSize - 1; i++) {
+            machine->tlb[i] = machine->tlb[i+1];
+        }
+    }
+    // Update TLB
+    machine->tlb[TLBreplaceIdx] = page;
+}
+```
+
+Result:
+
+TLBSize = 2
+
+```txt
+TLB Miss: 87, TLB Hit: 851, Total Translate: 938, TLB Miss Rate: 9.28%
+Machine halting!
+```
+
+Default TLBSize
+
+```txt
+TLB Miss: 6, TLB Hit: 824, Total Translate: 830, TLB Miss Rate: 0.72%
+```
+
+#### Clock
+
+Because the Nachos TLB (the `class TranslationEntry` in `code/machine/translate.h`) already has `use` (and `dirty`) bit.
+
+We can implement the alternative second chance replacement algorithm by the clock algorithm.
+
+> The brief description of second chance replacement algorithm:
+>
+> * It is designed to avoid the problem of throwing out a heavily used page in FIFO
+> * Introduce R bit (i.e. `use` bit)
+>   * 0: page is both old and unused, so it is replaced immediately
+>   * 1: the bit is cleared, the page is put onto the end of the list of TLB (and its load time is updated as though it had just arrived in memory)
+
+```c
+int TLBreplaceIdx = 0; // When using TLB_CLOCK, this is circular pointer
+
+void
+TLBAlgoClock(TranslationEntry page)
+{
+    // Find the next one
+    // if used then clear to 0 and continue find the next one.
+    // until find the one that is not used.
+    while (1) {
+        TLBreplaceIdx %= TLBSize;
+        if (machine->tlb[TLBreplaceIdx].valid == FALSE) {
+            break;
+        } else  {
+            if (machine->tlb[TLBreplaceIdx].use) {
+                // Found the entry is recently used
+                // clear the R bit and find next
+                machine->tlb[TLBreplaceIdx].use = FALSE;
+                TLBreplaceIdx++;
+            } else {
+                // Evict the entry
+                break;
+            }
+        }
+    }
+
+    // Update TLB
+    machine->tlb[TLBreplaceIdx] = page;
+    machine->tlb[TLBreplaceIdx].use = TRUE;
+}
+```
+
+Result:
+
+```txt
+TLB Miss: 6, TLB Hit: 824, Total Translate: 830, TLB Miss Rate: 0.72%
+```
+
+#### LRU
+
+TODO
+
+#### Conclusion
+
+In the fibonacci user program we can found that. Because in the scenario there is no chance to "throwing out a heavily used TLB" since the memory access is quite average.
+Thus the performance of FIFO and Clock algorithm are the same.
+
 ## II. Paging Memory Management
 
 > In the current Nachos, The member variable `AddrSpace* space` used in `Class Thread` use `TranslationEntry* pageTable` to manage memory.
@@ -630,6 +820,19 @@ And it shows that the TLB mechanism worked!
 
 > The defect of Hierarchical Paging (multi-level page table) is the page table size is *in direct ratio to* virtual address space.
 > To reduce the consumption on physical page table. Implement inverted page table on Nachos.
+
+## Trouble Shooting
+
+### Copy file from the running docker container
+
+Because I want to pick out the built user test program. That I don't want to compile the whole project every time.
+
+```sh
+docker cp 987fea7d8235:/nachos/nachos-3.4/code/test/fibonacci Nachos/nachos-3.4/code/test
+```
+
+* [Docker: Cp Command – Copy File ( To | From ) Container](https://www.shellhacks.com/docker-cp-command-copy-file-to-from-container/)
+* [Stackoverflow - How to copy files from local machine to docker container on windows](https://stackoverflow.com/questions/40313633/how-to-copy-files-from-local-machine-to-docker-container-on-windows)
 
 ## Resources
 

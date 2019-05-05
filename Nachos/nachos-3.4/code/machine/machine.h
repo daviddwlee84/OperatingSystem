@@ -198,9 +198,15 @@ extern void ExceptionHandler(ExceptionType which);
 // Exercise 2 and 3
 void TLBMissHandler(int virtAddr);
 // Exercise 3
-void TLBAlgoFIFO(int vpn);
-void TLBAlgoClock(int vpn);
-void TLBAlgoLRU(int vpn);
+void TLBAlgoFIFO(TranslationEntry page);
+void TLBAlgoClock(TranslationEntry page);
+void TLBAlgoLRU(TranslationEntry page);
+//Exercise 7 Demand paging
+TranslationEntry PageFaultHandler(int virtAddr);
+
+// Lab4: Used for calculate TLB Miss rate (debug purpose)
+extern int TLBMissCount;
+extern int TranslateCount;
 
 // Routines for converting Words and Short Words to and from the
 // simulated machine's format of little endian.  If the host machine
