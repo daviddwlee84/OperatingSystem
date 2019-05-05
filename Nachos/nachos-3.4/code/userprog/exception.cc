@@ -51,7 +51,28 @@
 void
 ExceptionHandler(ExceptionType which)
 {
-    int type = machine->ReadRegister(2);
+    // Lab4: Page Fault Handling
+    if (which == PageFaultException) {
+        if (machine->tlb == NULL) { // linear page table page fault
+	        DEBUG('m', "=> Page table page fault.\n");
+            // In current Nachos this shouldn't happen
+            // because physical page frame == virtual page number
+            // (can be found in AddrSpace::AddrSpace in userprog/addrspace.cc)
+            // On the other hand, in our Lab we won't use linear page table at all
+            ASSERT(FALSE);
+        } else { // TLB miss (no TLB entry)
+            // Lab4 Exercise2
+	        DEBUG('m', "=> TLB miss (no TLB entry)\n");
+            int BadVAddr = machine->ReadRegister(BadVAddrReg); // The failing virtual address on an exception
+            TLBMissHandler(BadVAddr);
+        }
+        return;
+    }
+
+    // System Call
+    // The system call codes (SC_[TYPE]) is defined in userprog/syscall.h
+    // The system call stubs is defined in test/start.s
+    int type = machine->ReadRegister(2); // r2: the standard C calling convention on the MIPS
 
     if ((which == SyscallException) && (type == SC_Halt)) {
 	DEBUG('a', "Shutdown, initiated by user program.\n");
@@ -60,4 +81,77 @@ ExceptionHandler(ExceptionType which)
 	printf("Unexpected user mode exception %d %d\n", which, type);
 	ASSERT(FALSE);
     }
+}
+
+/**********************************************************************/
+/*************************** Lab4: TLB Miss ***************************/
+/**********************************************************************/
+
+// Lab4 Exercise3
+// #define TLB_FIFO TRUE
+// #define TLB_CLOCK TRUE
+// #define TLB_LRU TRUE
+
+// Lab4 Exercise2
+#if !(TLB_FIFO || TLB_CLOCK || TLB_LRU)
+int TLBreplaceIdx = 0;
+#endif
+
+//----------------------------------------------------------------------
+// TLBMissHandler
+// 	
+//----------------------------------------------------------------------
+
+void
+TLBMissHandler(int virtAddr)
+{
+    unsigned int vpn;
+    vpn = (unsigned) virtAddr / PageSize;
+
+#ifdef TLB_FIFO
+    TLBAlgoFIFO(vpn);
+#elif TLB_CLOCK
+    TLBAlgoClock(vpn);
+#elif TLB_LRU
+    TLBAlgoLRU(vpn);
+#else
+    // ONLY USE FOR TESTING Lab4 Exercise2
+    // i.e. assume TLBSize = 2
+    machine->tlb[TLBreplaceIdx] = machine->pageTable[vpn];
+    TLBreplaceIdx = TLBreplaceIdx ? 0 : 1;
+#endif
+
+}
+
+//----------------------------------------------------------------------
+// TLBAlgoFIFO
+// 	
+//----------------------------------------------------------------------
+
+void
+TLBAlgoFIFO(int vpn)
+{
+
+}
+
+//----------------------------------------------------------------------
+// TLBAlgoClock
+// 	
+//----------------------------------------------------------------------
+
+void
+TLBAlgoClock(int vpn)
+{
+
+}
+
+//----------------------------------------------------------------------
+// TLBAlgoLRU
+// 	
+//----------------------------------------------------------------------
+
+void
+TLBAlgoLRU(int vpn)
+{
+
 }

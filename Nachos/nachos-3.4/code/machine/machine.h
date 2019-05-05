@@ -194,6 +194,13 @@ extern void ExceptionHandler(ExceptionType which);
 				// user system calls and exceptions
 				// Defined in exception.cc
 
+// Lab4: Page Fault and TLB Miss Handler
+// Exercise 2 and 3
+void TLBMissHandler(int virtAddr);
+// Exercise 3
+void TLBAlgoFIFO(int vpn);
+void TLBAlgoClock(int vpn);
+void TLBAlgoLRU(int vpn);
 
 // Routines for converting Words and Short Words to and from the
 // simulated machine's format of little endian.  If the host machine

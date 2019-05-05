@@ -199,8 +199,9 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
 	return AddressErrorException;
     }
     
-    // we must have either a TLB or a page table, but not both!
-    ASSERT(tlb == NULL || pageTable == NULL);	
+	// Lab4: TLB
+    // we must have either a TLB or a page table, but not both! (this is just the original assumption)
+    // ASSERT(tlb == NULL || pageTable == NULL);
     ASSERT(tlb != NULL || pageTable != NULL);	
 
 // calculate the virtual page number, and offset within the page,
@@ -214,8 +215,7 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
 			virtAddr, pageTableSize);
 	    return AddressErrorException;
 	} else if (!pageTable[vpn].valid) {
-	    DEBUG('a', "virtual page # %d too large for page table size %d!\n", 
-			virtAddr, pageTableSize);
+	    DEBUG('a', "virtual page # %d is invalid!\n");
 	    return PageFaultException;
 	}
 	entry = &pageTable[vpn];
