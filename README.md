@@ -57,6 +57,7 @@ PKU OS course project and notes based on Nachos and XV6.
 * [Memory Management](Notes/CourseNote/MemoryManagement.md)
 * [Page Replacement Algorithm](Notes/CourseNote/PageReplacementAlgo.md)
 * [Synchronization](Notes/CourseNote/Synchronization.md)
+* [File System](Notes/CourseNote/FileSystem.md)
 
 ## Resources
 
