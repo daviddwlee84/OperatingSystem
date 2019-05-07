@@ -83,23 +83,47 @@ Noff header resides at the very start of the file. And containes pointers to the
 The `-d` argument
 
 ```sh
-nachos -d t
+nachos -d <debug_flag>
 ```
 
-`code/lib/debug.h` (does not exist in current version Nachos code, but the flags are the same)
+> `code/lib/debug.h` (does not exist in current version Nachos code, but the flags are the same)
+>
+> ```c
+> // The pre-defined debugging flags are:
+>
+> const char dbgAll = '+';		// turn on all debug messages
+> const char dbgThread = 't';		// threads
+> const char dbgSynch = 's';		// locks, semaphores, condition vars
+> const char dbgInt = 'i'; 		// interrupt emulation
+> const char dbgMach = 'm'; 		// machine emulation (USER_PROGRAM)
+> const char dbgDisk = 'd'; 		// disk emulation (FILESYS)
+> const char dbgFile = 'f'; 		// file system (FILESYS)
+> const char dbgAddr = 'a'; 		// address spaces (USER_PROGRAM)
+> const char dbgNet = 'n'; 		// network emulation (NETWORK)
+> ```
+
+The debug flag is defined in `code/threads/utility.h`
 
 ```c
-// The pre-defined debugging flags are:
+//	The debugging routines allow the user to turn on selected
+//	debugging messages, controllable from the command line arguments
+//	passed to Nachos (-d).  You are encouraged to add your own
+//	debugging flags.  The pre-defined debugging flags are:
+//
+//	'+' -- turn on all debug messages
+//   	't' -- thread system
+//   	's' -- semaphores, locks, and conditions
+//   	'i' -- interrupt emulation
+//   	'm' -- machine emulation (USER_PROGRAM)
+//   	'd' -- disk emulation (FILESYS)
+//   	'f' -- file system (FILESYS)
+//   	'a' -- address spaces (USER_PROGRAM)
+//   	'n' -- network emulation (NETWORK)
 
-const char dbgAll = '+';		// turn on all debug messages
-const char dbgThread = 't';		// threads
-const char dbgSynch = 's';		// locks, semaphores, condition vars
-const char dbgInt = 'i'; 		// interrupt emulation
-const char dbgMach = 'm'; 		// machine emulation (USER_PROGRAM)
-const char dbgDisk = 'd'; 		// disk emulation (FILESYS)
-const char dbgFile = 'f'; 		// file system (FILESYS)
-const char dbgAddr = 'a'; 		// address spaces (USER_PROGRAM)
-const char dbgNet = 'n'; 		// network emulation (NETWORK)
+...
+
+extern void DEBUG (char flag, char* format, ...);  	// Print debug message 
+							// if flag is enabled
 ```
 
 > I've add `c` for (random) Context Switch used in `threads/system.cc`.
@@ -107,6 +131,7 @@ const char dbgNet = 'n'; 		// network emulation (NETWORK)
 > I've add `w` for Reader-Writer Lock related in `threads/synch.cc`
 > I've add `T` for TLB handling in `machine/exception.cc`
 > I've add `M` for memory management (allocation, data structure (e.g. bitmap)) in `machine/machine.cc`
+> I've add `S` for system call in `machine/exception.cc`
 
 #### Single Stepping
 
