@@ -35,7 +35,7 @@ CPP = gcc -E
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR)
 
-all: halt shell matmult sort fibonacci
+all: halt shell matmult sort fibonacci exit
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.c > strt.s
@@ -72,3 +72,10 @@ fibonacci.o: fibonacci.c
 fibonacci: fibonacci.o start.o
 	$(LD) $(LDFLAGS) start.o fibonacci.o -o fibonacci.coff
 	../bin/coff2noff fibonacci.coff fibonacci
+
+# For Lab4: Test the multi-thread user program
+exit.o: exit.c
+	$(CC) $(CFLAGS) -c exit.c
+exit: exit.o start.o
+	$(LD) $(LDFLAGS) start.o exit.o -o exit.coff
+	../bin/coff2noff exit.coff exit

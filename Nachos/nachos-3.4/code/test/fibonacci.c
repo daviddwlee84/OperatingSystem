@@ -17,6 +17,5 @@ main()
     {
         result[i] = result[i-1] + result[i-2];
     }
-    // Exit(result[i]); // because we haven't implement Exit syscall yet
-    Halt();
+    Exit(result[N-1]);
 }
