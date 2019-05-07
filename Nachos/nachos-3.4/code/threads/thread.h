@@ -120,6 +120,10 @@ class Thread {
     int getPriority() { return (priority); }  // Lab2: Get priority
     void setPriority(int p) { priority = p; } // Lab2: Set priority
 
+    // Lab6: system call
+    int getExitStatus() const { return exitStatus; } // Lab6: Exit system call
+    void setExitStatus(int val) { exitStatus = val;} // Lab6: Exit system call
+
   private:
     // some of the private data for this class is listed above
     
@@ -133,7 +137,10 @@ class Thread {
     					// Allocate a stack for thread.
 					// Used internally by Fork()
 
-#ifdef USER_PROGRAM
+    // Lab6: system call
+    int exitStatus; // Lab6: Exit system call
+
+#ifdef USER_PROGRAM // Lab4: Multi-thread user program
 // A thread running a user program actually has *two* sets of CPU registers -- 
 // one for its state while executing user code, one for its state 
 // while executing kernel code.

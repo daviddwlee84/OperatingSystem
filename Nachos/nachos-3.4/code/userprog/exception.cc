@@ -74,21 +74,29 @@ ExceptionHandler(ExceptionType which)
     // The system call stubs is defined in test/start.s
     int type = machine->ReadRegister(2); // r2: the standard C calling convention on the MIPS
 
-    if ((which == SyscallException) && (type == SC_Halt)) {
-        DEBUG('a', "Shutdown, initiated by user program.\n");
-#ifdef USE_TLB
-        // Lab4: Used for calculate TLB Miss rate (debug purpose)
-        DEBUG('T', "TLB Miss: %d, TLB Hit: %d, Total Instruction: %d, Total Translate: %d, TLB Miss Rate: %.2lf%%\n",
-            TLBMissCount, TranslateCount-2*TLBMissCount, TranslateCount-TLBMissCount, TranslateCount, (double)(TLBMissCount*100)/(TranslateCount-TLBMissCount));
-#endif
-#ifdef USE_BITMAP
-        machine->freeMem(); // ONLY USE FOR TEST Lab4 Exercise4
-#endif
-        interrupt->Halt();
-    } else {
-	printf("Unexpected user mode exception %d %d\n", which, type);
-	ASSERT(FALSE);
+    if (which == SyscallException) {
+        if (type == SC_Halt) {
+            DEBUG('a', "Shutdown, initiated by user program.\n");
+            PrintTLBStatus(); // TLB debug usage
+            interrupt->Halt();
+        } else if (type == SC_Exit || type == SC_Exec || type == SC_Join) {
+            // Address Space Control (Process Management) System Calls
+            AddressSpaceControlHandler(type);
+        } else if (type == SC_Create || type == SC_Open || type == SC_Write || type == SC_Read || type == SC_Close) {
+            // File System System Calls
+            FileSystemHandler(type);
+        } else if (type == SC_Fork || type == SC_Yield) {
+            // User-level Threads System Calls
+            UserLevelThreadsHandler(type);
+        }
+
+        // Increment the Program Counter before returning.
+        IncrementPCRegs();
+        return;
     }
+
+    printf("Unexpected user mode exception %d %d\n", which, type);
+	ASSERT(FALSE);
 }
 
 /**********************************************************************/
@@ -104,6 +112,16 @@ ExceptionHandler(ExceptionType which)
 #if !(TLB_FIFO || TLB_LRU)
 int TLBreplaceIdx = 0; // When using TLB_CLOCK, this is circular pointer
 #endif
+
+// Print TLB Status
+void PrintTLBStatus(void)
+{
+#ifdef USE_TLB
+    // Lab4: Used for calculate TLB Miss rate (debug purpose)
+    DEBUG('T', "TLB Miss: %d, TLB Hit: %d, Total Instruction: %d, Total Translate: %d, TLB Miss Rate: %.2lf%%\n",
+        TLBMissCount, TranslateCount-2*TLBMissCount, TranslateCount-TLBMissCount, TranslateCount, (double)(TLBMissCount*100)/(TranslateCount-TLBMissCount));
+#endif
+}
 
 //----------------------------------------------------------------------
 // TLBMissHandler
@@ -230,6 +248,86 @@ TLBAlgoLRU(TranslationEntry page)
 
 TranslationEntry
 PageFaultHandler(int virtAddr)
+{
+
+}
+
+/**********************************************************************/
+/*************************** Lab6: Syscall ****************************/
+/**********************************************************************/
+
+//----------------------------------------------------------------------
+// IncrementPCRegs
+// 	Because when Nachos cause the exception. The PC won't increment
+//  (i.e. PC+4) in Machine::OneInstruction in machine/mipssim.cc.
+//  Thus, when invoking a system call, we need to advance the program
+//  counter. Or it will cause the infinity loop.
+//----------------------------------------------------------------------
+
+void IncrementPCRegs(void) {
+    // Debug usage
+    machine->WriteRegister(PrevPCReg, machine->ReadRegister(PCReg));
+
+    // Advance program counter
+    machine->WriteRegister(PCReg, machine->ReadRegister(NextPCReg));
+    machine->WriteRegister(NextPCReg, machine->ReadRegister(NextPCReg)+4);
+}
+
+//----------------------------------------------------------------------
+// AddressSpaceControlHandler
+// 	Handling address space control related system call.
+//  1. Exit
+//  2. Exec
+//  3. Join
+//----------------------------------------------------------------------
+
+void AddressSpaceControlHandler(int type)
+{
+    if (type == SC_Exit) {
+
+        PrintTLBStatus(); // TLB debug usage
+
+        int status = machine->ReadRegister(4); // r4: first arguments to functions
+
+        currentThread->setExitStatus(status);
+        if (status == 0) {
+            DEBUG('S', COLORED(GREEN, "User program exit normally. (status 0)\n"));
+        } else {
+            DEBUG('S', COLORED(FAIL, "User program exit with status %d\n"), status);
+        }
+
+        // TODO: release children
+
+#ifdef USER_PROGRAM
+        if (currentThread->space != NULL) {
+#ifdef USE_BITMAP
+            machine->freeMem(); // ONLY USE FOR TEST Lab4 Exercise4
+#endif
+            delete currentThread->space;
+            currentThread->space = NULL;
+        }
+#endif
+        // TODO: if it has parent, then set this to zombie and signal
+        currentThread->Finish();
+    }
+}
+
+//----------------------------------------------------------------------
+// FileSystemHandler
+// 	
+//----------------------------------------------------------------------
+
+void FileSystemHandler(int type)
+{
+
+}
+
+//----------------------------------------------------------------------
+// UserLevelThreadsHandler
+// 	
+//----------------------------------------------------------------------
+
+void UserLevelThreadsHandler(int type)
 {
 
 }

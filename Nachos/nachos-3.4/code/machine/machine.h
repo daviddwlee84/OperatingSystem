@@ -186,6 +186,7 @@ class Machine {
     TranslationEntry *pageTable;
     unsigned int pageTableSize;
 
+#ifdef USER_PROGRAM
 		// Lab4: Global data structure for memory management
 #if USE_BITMAP
 		unsigned int bitmap; // This can record 32 allocation units (sizeof(int)*8 = 32). Current NumPhysPages is 32 too.
@@ -194,6 +195,7 @@ class Machine {
 #elif USE_LINKED_LIST
 		// TODO
 #endif
+#endif // USER_PROGRAM
 
   private:
     bool singleStep;		// drop back into the debugger after each
@@ -220,6 +222,7 @@ TranslationEntry PageFaultHandler(int virtAddr);
 // Lab4: Used for calculate TLB Miss rate (debug purpose)
 extern int TLBMissCount;
 extern int TranslateCount;
+void PrintTLBStatus(void);
 
 // Routines for converting Words and Short Words to and from the
 // simulated machine's format of little endian.  If the host machine

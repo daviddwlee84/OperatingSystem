@@ -223,6 +223,8 @@ void Machine::WriteRegister(int num, int value)
 /*************** Lab4: Memory Management Global Object ****************/
 /**********************************************************************/
 
+#ifdef USER_PROGRAM
+
 #if USE_BITMAP
 //----------------------------------------------------------------------
 // Machine::allocateFrame
@@ -263,3 +265,5 @@ Machine::freeMem(void)
 #elif USE_LINKED_LIST
 		// TODO
 #endif
+
+#endif // USER_PROGRAM
