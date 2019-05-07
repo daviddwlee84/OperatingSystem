@@ -41,6 +41,66 @@
 | f16−f18         | -                 | More temporary registers, not preserved by subprograms           |
 | f20−f31         | -                 | Saved registers, preserved by subprograms                        |
 
+### Program Counter Related Registers
+
+The Mips processor is a "two-stage" pipeline processor; that is, it has 2 program counter registers - PCReg and NextPCReg.
+
+* PCReg: for the next instruction to execute
+* NextPCReg: for the instruction after that
+
+While the processor is executing one instruction, it can simultaneously be preparing the next one to execute.
+
+#### Exception Related Problem
+
+How should these registers be adjusted before returning from a system call that simply continues execution of the user thread that made the system call?
+
+Example: page fault exception
+
+the Mips instruction that caused the page fault will need to be executed again
+
+Example: system call
+
+we should not execute the Mips instruction that caused the exception, since it was the syscall instruction, as this would cause an infinite loop of calls
+
+> So the question is whether the PC registers have already been incremented when the syscall is made or not. The answer is that they have **not** been incremented. So before returning from the system call, the PC registers for the calling thread must be incremented properly!
+
+* [System Calls Need to Adjust the PC Registers](http://condor.depaul.edu/glancast/546class/docs/adjustRegs.html)
+
+#### Nachos User-Space Register
+
+There is the definition of user register and related operations in `code/threads/thread.h`.
+
+It says there are two sets of CPU registers, each to record state in different mode.
+
+* user code running state
+* kernel code running state
+
+```c
+class Thread {
+
+    ...
+
+  private:
+
+    ...
+
+#ifdef USER_PROGRAM
+// A thread running a user program actually has *two* sets of CPU registers -- 
+// one for its state while executing user code, one for its state 
+// while executing kernel code.
+
+    int userRegisters[NumTotalRegs];	// user-level CPU register state
+
+  public:
+    void SaveUserState();		// save user-level register state
+    void RestoreUserState();		// restore user-level register state
+
+    AddrSpace *space;			// User code this thread is running.
+#endif
+
+};
+```
+
 ## MAL MIPS Assembly Language
 
 ## Simulator
