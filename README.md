@@ -16,6 +16,8 @@ PKU OS course project and notes based on Nachos and XV6.
 | Lab 2 | [Thread Scheduling](Lab/Lab2_ThreadScheduling/README.md)                 | CPU scheduling                                             |
 | Lab 3 | [Synchronization Mechanism](Lab/Lab3_SynchronizationMechanism/README.md) | Concurrency, mutex lock and semaphore                      |
 | Lab 4 | [Virtual Memory](Lab/Lab4_VirtualMemory/README.md)                       | TLB, demand paging, replacement algorithm and user program |
+| Lab 5 | [File System](Lab/Lab5_FileSystem/README.md)                             | Improve current file system                                |
+| Lab 6 | [System Call](Lab/Lab6_SystemCall/README.md)                             | Implement all system calls                                 |
 
 > [**Quick start with docker!! (recommend)**](Lab/Lab0_BuildNachos/DevEnvironment.md#Use-Docker-with-32bit-image)
 
