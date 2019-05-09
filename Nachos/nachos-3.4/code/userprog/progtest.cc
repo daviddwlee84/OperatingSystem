@@ -18,6 +18,7 @@
 // StartProcess
 // 	Run a user program.  Open the executable, load it into
 //	memory, and jump to it.
+//  (ps. use -x filename, detail information is in thread/main.c)
 //----------------------------------------------------------------------
 
 void
@@ -81,4 +82,76 @@ ConsoleTest (char *in, char *out)
 	writeDone->P() ;        // wait for write to finish
 	if (ch == 'q') return;  // if q, quit
     }
+}
+
+/**********************************************************************/
+/************************* Lab4: Multi-thread *************************/
+/**********************************************************************/
+
+//----------------------------------------------------------------------
+// UserProgThread
+// 	A basic user program thread.
+//----------------------------------------------------------------------
+
+void
+UserProgThread(int number)
+{
+    printf("Running user program thread %d\n", number);
+    currentThread->space->InitRegisters();		// set the initial register values
+    currentThread->space->RestoreState();		// load page table register
+    currentThread->space->PrintState();         // debug usage
+    machine->Run();	// jump to the user progam
+    ASSERT(FALSE);			// machine->Run never returns;
+                // the address space exits
+                // by doing the syscall "exit"
+}
+
+//----------------------------------------------------------------------
+// CreateSingleThread
+// 	Run a user program.  Open the executable, load it into
+//	memory, create a copy of it and return the thread.
+//----------------------------------------------------------------------
+
+Thread*
+CreateSingleThread(OpenFile *executable, int number)
+{
+    printf("Creating user program thread %d\n", number);
+
+    char ThreadName[20];
+    sprintf(ThreadName, "User program %d", number);
+    Thread *thread = new Thread(strdup(ThreadName), -1);
+
+    AddrSpace *space;
+    space = new AddrSpace(executable);
+    thread->space = space;
+
+    return thread;
+}
+
+//----------------------------------------------------------------------
+// StartTwoThread
+// 	Run a user program.  Open the executable, load it into
+//	memory, create two copy of the thread and jump to it.
+//  (ps. use -X filename, detail information is in thread/main.c)
+//----------------------------------------------------------------------
+
+void
+StartTwoThread(char *filename)
+{
+    OpenFile *executable = fileSystem->Open(filename);
+
+    if (executable == NULL) {
+	    printf("Unable to open file %s\n", filename);
+	    return;
+    }
+
+    Thread *thread1 = CreateSingleThread(executable, 1);
+    Thread *thread2 = CreateSingleThread(executable, 2);
+
+    delete executable;			// close file
+
+    thread1->Fork(UserProgThread, (void*)1);
+    thread2->Fork(UserProgThread, (void*)2);
+
+    currentThread->Yield();
 }

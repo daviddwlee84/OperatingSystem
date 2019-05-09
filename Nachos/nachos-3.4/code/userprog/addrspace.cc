@@ -93,6 +93,7 @@ AddrSpace::AddrSpace(OpenFile *executable)
 // Lab4: Global data structure for memory management
 #if USE_BITMAP
     pageTable[i].physicalPage = machine->allocateFrame();
+    ASSERT_MSG(pageTable[i].physicalPage != -1, "No free page frame."); // Currently, all page need to be loaded into the memory
 #elif USE_LINKED_LIST
     // TODO
 #else
@@ -179,8 +180,15 @@ AddrSpace::InitRegisters()
 //	For now, nothing!
 //----------------------------------------------------------------------
 
-void AddrSpace::SaveState() 
-{}
+void AddrSpace::SaveState()
+{
+#ifdef USE_TLB // Lab4: Clean up TLB
+    DEBUG('T', "Clean up TLB due to Context Switch!\n");
+    for (int i = 0; i < TLBSize; i++) {
+        machine->tlb[i].valid = FALSE;
+    }
+#endif
+}
 
 //----------------------------------------------------------------------
 // AddrSpace::RestoreState
@@ -194,4 +202,30 @@ void AddrSpace::RestoreState()
 {
     machine->pageTable = pageTable;
     machine->pageTableSize = numPages;
+}
+
+//----------------------------------------------------------------------
+// AddrSpace::PrintState
+// 	Print the state of this address space. (debug usage)
+//----------------------------------------------------------------------
+
+void
+AddrSpace::PrintState() 
+{
+    printf("=== %s ===\n", COLORED(BLUE, "Address Space Information"));
+    printf("numPages = %d\n", numPages);
+    printf("VPN\tPPN\tvalid\tRO\tuse\tdirty\n");
+    for (int i = 0; i < numPages; i++) {
+        printf("%d\t", pageTable[i].virtualPage);
+        printf("%d\t", pageTable[i].physicalPage);
+        printf("%d\t", pageTable[i].valid);
+        printf("%d\t", pageTable[i].use);
+        printf("%d\t", pageTable[i].dirty);
+        printf("%d\t", pageTable[i].readOnly);
+        printf("\n");
+    }
+#if USE_BITMAP
+    DEBUG('M', "Current Bitmap: %08X\n", machine->bitmap);
+#endif
+    printf("=================================\n");
 }
