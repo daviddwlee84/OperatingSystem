@@ -156,9 +156,11 @@ gdb nachos
 * [**Washington Nachos (Official Website)**](https://homes.cs.washington.edu/~tom/nachos/)
 * [**Nachos Beginner's Guide**](https://www.ida.liu.se/~TDDI04/material/begguide/) - Nachos support documentation
   * [A Road Map Through Nachos](https://www.ida.liu.se/~TDDI04/material/begguide/roadmap/index.html)
+* [**Nachos Introduction Slides**](http://mescal.imag.fr/membres/vania.marangozova-martin/TEACHING/NACHOS/nachos2009_2010.pdf)
 * [NYU Nachos Resources](https://cs.nyu.edu/courses/spring04/V22.0202-001/nachos-resources.htm)
 * [Nachos Overview](https://www.cs.odu.edu/~cs471/soumya/salsa.html)
   * [Nachos Details](https://www.cs.odu.edu/~cs471/soumya/details.html)
+* [CS 1550 Nachos](https://people.cs.pitt.edu/~manas/courses/CS1550/nachos.htm)
 
 ### UC Berkeley
 

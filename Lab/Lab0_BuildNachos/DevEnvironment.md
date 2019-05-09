@@ -102,6 +102,12 @@ Paging: faults 0
 Network I/O: packets received 0, sent 0
 
 Cleaning up...
+
+# Other ways to playing around
+# Interactive concole test
+$ docker run -it nachos nachos/nachos-3.4/code/userprog/nachos -c
+# Step by step user program
+& docker run -it nachos nachos/nachos-3.4/code/userprog/nachos -s -d a -x nachos/nachos-3.4/code/test/halt
 ```
 
 GDB debugging
