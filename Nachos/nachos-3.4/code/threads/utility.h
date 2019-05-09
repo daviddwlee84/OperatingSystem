@@ -73,12 +73,27 @@ extern void DEBUG (char flag, char* format, ...);  	// Print debug message
 //	NOTE: needs to be a #define, to be able to print the location 
 //	where the error occurred.
 //----------------------------------------------------------------------
-#define ASSERT(condition)                                                     \
-    if (!(condition)) {                                                       \
-        fprintf(stderr, "Assertion failed: line %d, file \"%s\"\n",           \
-                __LINE__, __FILE__);                                          \
-	fflush(stderr);							      \
-        Abort();                                                              \
+#define ASSERT(condition)                                                          \
+    if (!(condition))                                                              \
+    {                                                                              \
+        fprintf(stderr, COLORED(FAIL, "Assertion failed: line %d, file \"%s\"\n"), \
+                __LINE__, __FILE__);                                               \
+        fflush(stderr);                                                            \
+        Abort();                                                                   \
+    }
+
+//----------------------------------------------------------------------
+// ASSERT_MSG
+//      If condition is false,  print a message and dump core.
+//	Useful for documenting assumptions in the code.
+//----------------------------------------------------------------------
+#define ASSERT_MSG(condition, message)                                                               \
+    if (!(condition))                                                                                \
+    {                                                                                                \
+        fprintf(stderr, COLORED(FAIL, "Assertion failed: due to \"%s\", at line %d, file \"%s\"\n"), \
+                message, __LINE__, __FILE__);                                                        \
+        fflush(stderr);                                                                              \
+        Abort();                                                                                     \
     }
 
 // My customized ANSI colour codes

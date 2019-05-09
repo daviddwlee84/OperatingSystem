@@ -54,7 +54,7 @@ ExceptionHandler(ExceptionType which)
     // Lab4: Page Fault Handling
     if (which == PageFaultException) {
         if (machine->tlb == NULL) { // linear page table page fault
-	        DEBUG('m', "=> Linear page table page fault.\n");
+	        DEBUG('m', COLORED(WARNING, "=> Linear page table page fault.\n"));
             // In current Nachos this shouldn't happen
             // because physical page frame == virtual page number
             // (can be found in AddrSpace::AddrSpace in userprog/addrspace.cc)
@@ -62,7 +62,7 @@ ExceptionHandler(ExceptionType which)
             ASSERT(FALSE);
         } else { // TLB miss (no TLB entry)
             // Lab4 Exercise 2 and 3 and 7
-	        DEBUG('m', "=> TLB miss (no TLB entry)\n");
+	        DEBUG('m', COLORED(WARNING, "=> TLB miss (no TLB entry)\n"));
             int BadVAddr = machine->ReadRegister(BadVAddrReg); // The failing virtual address on an exception
             TLBMissHandler(BadVAddr);
         }
@@ -139,7 +139,7 @@ TLBMissHandler(int virtAddr)
     // Find the Page
     TranslationEntry page = machine->pageTable[vpn];
     if (!page.valid) { // Lab4 Exercise7
-        DEBUG('m', "\t=> Page Miss\n");
+        DEBUG('m', COLORED(WARNING, "\t=> Page miss\n"));
         page = PageFaultHandler(vpn);
     }
 
