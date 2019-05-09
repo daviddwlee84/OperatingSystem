@@ -171,7 +171,7 @@ In `StartProcess()` it will do three main step.
     space->RestoreState();		// load page table register
     ```
 
-3. Finall call `Machine::Run()` to run the user program. And it's defined in `code/machine/mipssim.cc`
+3. Finally, call `Machine::Run()` to run the user program. And it's defined in `code/machine/mipssim.cc`
 
 #### TLB Technique and Address Binding
 
@@ -624,8 +624,7 @@ There are preparations before test the algorithms
         {
             result[i] = result[i-1] + result[i-2];
         }
-        // Exit(result[i]); // because we haven't implement Exit syscall yet
-        Halt();
+        Exit(result[N-1]);
     }
     ```
 
@@ -668,7 +667,7 @@ docker run nachos_userprog nachos/nachos-3.4/code/userprog/nachos -d T -x nachos
 > ./build_modified_nachos.sh
 > ```
 >
-> and execute it using
+> and execute it. (use `-d S` to see the return value of Exit system call (to check the calculation result))
 >
 > ```sh
 > docker run nachos nachos/nachos-3.4/code/userprog/nachos -d T -x nachos/nachos-3.4/code/test/fibonacci
@@ -859,6 +858,10 @@ And implement `Machine::allocateFrame` and `Machine::freeMem` in `code/machine/m
 
 * `Machine::freeMem` is used when we want to release the page frames occupied by current page table
 
+> TODO:
+> Nachos actually has Bitmap class in `code/userprog/bitmap.cc` and `code/userprog/bitmap.h`.
+> If the physical memory need to be extend (current `unsigned int` can't represent) then switch to this.
+
 #### Free Linked List
 
 TODO
@@ -872,18 +875,30 @@ TODO
         pageTable[i].physicalPage = machine->allocateFrame();
         ```
 
-2. We also need to free the memory and clear the record in our data structure.
+2. [`Exit` system call](#The-Exit-Syscall)
+3. We also need to free the memory and clear the record in our data structure.
    * Bitmap
 
-        > At current phase, I've called the `Machine::freeMem` in the `Halt` system call in `code/machine/exception.cc` for test purpose
-
         ```c
-        if ((which == SyscallException) && (type == SC_Halt)) {
+        void AddressSpaceControlHandler(int type)
+        {
+            if (type == SC_Exit) {
 
-            ...
+                ...
 
-            machine->freeMem(); // ONLY USE FOR TEST Lab4 Exercise4
-            interrupt->Halt();
+        #ifdef USER_PROGRAM
+                if (currentThread->space != NULL) {
+        #ifdef USE_BITMAP
+                    machine->freeMem(); // ONLY USE FOR TEST Lab4 Exercise4
+        #endif
+                    delete currentThread->space;
+                    currentThread->space = NULL;
+                }
+        #endif
+
+                ...
+
+            }
         }
         ```
 
@@ -926,6 +941,436 @@ docker run nachos_userprog nachos/nachos-3.4/code/userprog/nachos -d M -x nachos
 ### Exercise 5: Support multi-threads
 
 > In the current Nachos, only single Thread can exist in memory. We need to break this restriction.
+
+Catch up how we [execute user program](#Executing-User-Program).
+
+And there is additional define in `code/threads/thread.h`. We can assign each thread a specific address space.
+
+```c
+class Thread {
+
+    ...
+
+  private:
+
+    ...
+
+#ifdef USER_PROGRAM // Lab4: Multi-thread user program
+// A thread running a user program actually has *two* sets of CPU registers -- 
+// one for its state while executing user code, one for its state 
+// while executing kernel code.
+
+    int userRegisters[NumTotalRegs];	// user-level CPU register state
+
+  public:
+    void SaveUserState();		// save user-level register state
+    void RestoreUserState();		// restore user-level register state
+
+    AddrSpace *space;			// User code this thread is running.
+#endif
+
+};
+```
+
+And the `Thread::SaveUserState()` and `Thread::RestoreUserState()` (manipulate CPU register)
+
+> Correspond to `AddrSpace::SaveState()` and `AddrSpace::RestoreState()` (manipulate memory (i.e. system page table and TLB))
+
+```c
+//----------------------------------------------------------------------
+// Thread::SaveUserState
+//	Save the CPU state of a user program on a context switch.
+//
+//	Note that a user program thread has *two* sets of CPU registers -- 
+//	one for its state while executing user code, one for its state 
+//	while executing kernel code.  This routine saves the former.
+//----------------------------------------------------------------------
+
+void
+Thread::SaveUserState()
+{
+    for (int i = 0; i < NumTotalRegs; i++)
+	userRegisters[i] = machine->ReadRegister(i);
+}
+
+//----------------------------------------------------------------------
+// Thread::RestoreUserState
+//	Restore the CPU state of a user program on a context switch.
+//
+//	Note that a user program thread has *two* sets of CPU registers -- 
+//	one for its state while executing user code, one for its state 
+//	while executing kernel code.  This routine restores the former.
+//----------------------------------------------------------------------
+
+void
+Thread::RestoreUserState()
+{
+    for (int i = 0; i < NumTotalRegs; i++)
+	machine->WriteRegister(i, userRegisters[i]);
+}
+```
+
+In `/code/threads/scheduler.cc`, when occur context switch, the scheduler will invoke both `Thread::SaveUserState()`, `Thread::RestoreUserState()` and `AddrSpace::SaveState()`, `AddrSpace::RestoreState()`
+
+```c
+void
+Scheduler::Run (Thread *nextThread)
+{
+    Thread *oldThread = currentThread;
+    
+#ifdef USER_PROGRAM			// ignore until running user programs 
+    if (currentThread->space != NULL) {	// if this thread is a user program,
+        currentThread->SaveUserState(); // save the user's CPU registers
+	currentThread->space->SaveState();
+    }
+#endif
+
+    ...
+
+    // Context Switch to nextThread
+
+    ...
+
+#ifdef USER_PROGRAM
+    if (currentThread->space != NULL) {		// if there is an address space
+        currentThread->RestoreUserState();     // to restore, do it.
+	currentThread->space->RestoreState();
+    }
+#endif
+}
+```
+
+#### The Exit Syscall
+
+As the Nachos comment said, `machine->Run()` never return, the address space exits by doing the syscall "exit".
+
+> This will also used in Exercise 4 to *clean up the memory management data structure*
+> and the other previous Exercises which used to *return the result value*.
+
+The defnition of `Exit` in the `code/userprog/syscall.h` said that. And there are also some address space related system call.
+
+* Exit
+* Exec
+* Join
+
+```c
+/* Address space control operations: Exit, Exec, and Join */
+
+/* This user program is done (status = 0 means exited normally). */
+void Exit(int status);
+
+/* A unique identifier for an executing user program (address space) */
+typedef int SpaceId;
+
+/* Run the executable, stored in the Nachos file "name", and return the
+ * address space identifier
+ */
+SpaceId Exec(char *name);
+
+/* Only return once the the user program "id" has finished.  
+ * Return the exit status.
+ */
+int Join(SpaceId id);
+```
+
+The Exit system call: user process quits with status returned.
+
+The kernel handles an Exit system call by
+
+1. destroying the process data structures and thread(s)
+2. [reclaiming any memory assigned to the process](#Other-Modification) (i.e. The memory management data structure)
+3. arranging to return the exit status value as the result of the `Join` on
+this process, if any.
+   * (The `Join` related part will be completed in [Lab6](../Lab6_SystemCall/README.md#Exercise-3:-Implement-user-program-system-call), we will now show the exit status value in debug message)
+
+> The following code is define in `code/userprog/syscall.h` and implement in `code/userprog/exception.cc`.
+
+I've made some system call handler function for further preparation.
+Each handling a type of system call.
+
+```c
+void AddressSpaceControlHandler(int type); // Exit, Exec, Join
+void FileSystemHandler(int type); // Create, Open, Write, Read, Close
+void UserLevelThreadsHandler(int type); // Fork, Yield
+```
+
+Because system call need to return to the next instruction (unlike the page fault exception).
+Thus we need to advance/increase the PC Registers. I've made this a function too.
+
+```c
+//----------------------------------------------------------------------
+// IncrementPCRegs
+// 	Because when Nachos cause the exception. The PC won't increment
+//  (i.e. PC+4) in Machine::OneInstruction in machine/mipssim.cc.
+//  Thus, when invoking a system call, we need to advance the program
+//  counter. Or it will cause the infinity loop.
+//----------------------------------------------------------------------
+
+void IncrementPCRegs(void) {
+    // Debug usage
+    machine->WriteRegister(PrevPCReg, machine->ReadRegister(PCReg));
+
+    // Advance program counter
+    machine->WriteRegister(PCReg, machine->ReadRegister(NextPCReg));
+    machine->WriteRegister(NextPCReg, machine->ReadRegister(NextPCReg)+4);
+}
+```
+
+And here is the Exit system call.
+
+> The TODOs is prepared for the furtuer Lab (maybe)
+
+```c
+//----------------------------------------------------------------------
+// AddressSpaceControlHandler
+// 	Handling address space control related system call.
+//  1. Exit
+//  2. Exec
+//  3. Join
+//----------------------------------------------------------------------
+
+void AddressSpaceControlHandler(int type)
+{
+    if (type == SC_Exit) {
+
+        PrintTLBStatus(); // TLB debug usage
+
+        int status = machine->ReadRegister(4); // r4: first arguments to functions
+
+        currentThread->setExitStatus(status);
+        if (status == 0) {
+            DEBUG('S', COLORED(GREEN, "User program exit normally. (status 0)\n"));
+        } else {
+            DEBUG('S', COLORED(FAIL, "User program exit with status %d\n"), status);
+        }
+
+        // TODO: release children
+
+#ifdef USER_PROGRAM
+        if (currentThread->space != NULL) {
+#ifdef USE_BITMAP
+            machine->freeMem(); // ONLY USE FOR TEST Lab4 Exercise4
+#endif
+            delete currentThread->space;
+            currentThread->space = NULL;
+        }
+#endif
+        // TODO: if it has parent, then set this to zombie and signal
+        currentThread->Finish();
+    }
+}
+```
+
+#### Build the Scenario
+
+I've add `StartTwoThread()` in `code/userprog/progtest.cc`. And user can invoke this by using `-X` flag that I've add the functionality in `code/threads/main.cc`.
+
+This is the hardest part so far. Because it's hard to understand how the simulator (i.e. `Machine`) work when executing user program that `Machine::Run` will run in infinity loop.
+
+Thus for now we need to make sure every user program exit properly.
+
+On the top level. Just after use `-X` to execute user program.
+The difference between original `StartProcess` is that this will create two threads using the same user program.
+
+```c
+//----------------------------------------------------------------------
+// StartTwoThread
+// 	Run a user program.  Open the executable, load it into
+//	memory, create two copy of the thread and jump to it.
+//  (ps. use -X filename, detail information is in thread/main.c)
+//----------------------------------------------------------------------
+
+void
+StartTwoThread(char *filename)
+{
+    OpenFile *executable = fileSystem->Open(filename);
+
+    if (executable == NULL) {
+	    printf("Unable to open file %s\n", filename);
+	    return;
+    }
+
+    Thread *thread1 = CreateSingleThread(executable, 1);
+    Thread *thread2 = CreateSingleThread(executable, 2);
+
+    delete executable;			// close file
+
+    thread1->Fork(UserProgThread, (void*)1);
+    thread2->Fork(UserProgThread, (void*)2);
+
+    currentThread->Yield();
+}
+```
+
+When creating the thread, I've made the thread priority greater than main thread.
+And assign the address space that created from the executable to the thread's space.
+
+```c
+//----------------------------------------------------------------------
+// CreateSingleThread
+// 	Run a user program.  Open the executable, load it into
+//	memory, create a copy of it and return the thread.
+//----------------------------------------------------------------------
+
+Thread*
+CreateSingleThread(OpenFile *executable, int number)
+{
+    printf("Creating user program thread %d\n", number);
+
+    char ThreadName[20];
+    sprintf(ThreadName, "User program %d", number);
+    Thread *thread = new Thread(strdup(ThreadName), -1);
+
+    AddrSpace *space;
+    space = new AddrSpace(executable);
+    thread->space = space;
+
+    return thread;
+}
+```
+
+And for each user program thread, because the thread will become `currentThread`.
+We need to initialize the machine register (use `AddrSpace::InitRegisters`) and load the page table (use `AddrSpace::RestoreState`). Then we're ready to go!
+
+```c
+//----------------------------------------------------------------------
+// UserProgThread
+// 	A basic user program thread.
+//----------------------------------------------------------------------
+
+void
+UserProgThread(int number)
+{
+    printf("Running user program thread %d\n", number);
+    currentThread->space->InitRegisters();		// set the initial register values
+    currentThread->space->RestoreState();		// load page table register
+    currentThread->space->PrintState(); // debug usage
+    machine->Run();	// jump to the user progam
+    ASSERT(FALSE);			// machine->Run never returns;
+                // the address space exits
+                // by doing the syscall "exit"
+}
+```
+
+#### Modify Address Space for Context Switch
+
+When context switch, the TLB will fail because of using different address space.
+
+> But at this moment this will have no influence,
+> because another thread will not interrupt or happen context switch when one thread is running.
+
+```c
+//----------------------------------------------------------------------
+// AddrSpace::SaveState
+// 	On a context switch, save any machine state, specific
+//	to this address space, that needs saving.
+//
+//	For now, nothing!
+//----------------------------------------------------------------------
+
+void AddrSpace::SaveState()
+{
+#ifdef USE_TLB // Lab4: Clean up TLB
+    DEBUG('T', "Clean up TLB due to Context Switch!\n");
+    for (int i = 0; i < TLBSize; i++) {
+        machine->tlb[i].valid = FALSE;
+    }
+#endif
+}
+```
+
+#### Test Exercise 5
+
+I've made a simple `code/test/exit.c` user program to test.
+
+```c
+/* halt.c
+ *	Simple program to test multi-thread user program (Lab 4)
+ */
+
+#include "syscall.h"
+
+int
+main()
+{
+    int i;
+    for (i = 0; i < 100; i++) {
+        // do nothing
+    }
+    Exit(87);
+}
+```
+
+And here is the result. (Debug message `S` for syscall, `T` for TLB, `t` for thread)
+
+```txt
+$ docker run nachos_userprog nachos/nachos-3.4/code/userprog/nachos -d STt -X nachos/nachos-3.4/code/test/exit
+Creating user program thread 1
+Creating user program thread 2
+Forking thread "User program 1" with func = 0x80502b7, arg = 1
+Putting thread User program 1 on ready list.
+Forking thread "User program 2" with func = 0x80502b7, arg = 2
+Putting thread User program 2 on ready list.
+Yielding thread "main"
+Putting thread main on ready list.
+Switching from thread "main" to thread "User program 1"
+Running user program thread 1
+=== Address Space Information ===
+numPages = 11
+VPN     PPN     valid   RO      use     dirty
+0       0       1       0       0       0
+1       1       1       0       0       0
+2       2       1       0       0       0
+3       3       1       0       0       0
+4       4       1       0       0       0
+5       5       1       0       0       0
+6       6       1       0       0       0
+7       7       1       0       0       0
+8       8       1       0       0       0
+9       9       1       0       0       0
+10      10      1       0       0       0
+=================================
+TLB Miss: 4, TLB Hit: 1322, Total Instruction: 1326, Total Translate: 1330, TLB Miss Rate: 0.30%
+User program exit with status 87
+Finishing thread "User program 1"
+Sleeping thread "User program 1"
+Switching from thread "User program 1" to thread "User program 2"
+Running user program thread 2
+=== Address Space Information ===
+numPages = 11
+VPN     PPN     valid   RO      use     dirty
+0       11      1       0       0       0
+1       12      1       0       0       0
+2       13      1       0       0       0
+3       14      1       0       0       0
+4       15      1       0       0       0
+5       16      1       0       0       0
+6       17      1       0       0       0
+7       18      1       0       0       0
+8       19      1       0       0       0
+9       20      1       0       0       0
+10      21      1       0       0       0
+=================================
+TLB Miss: 4, TLB Hit: 2647, Total Instruction: 2651, Total Translate: 2655, TLB Miss Rate: 0.15%
+User program exit with status 87
+Finishing thread "User program 2"
+Sleeping thread "User program 2"
+Switching from thread "User program 2" to thread "main"
+Now in thread "main"
+Deleting thread "User program 2"
+Finishing thread "main"
+Sleeping thread "main"
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+
+Ticks: total 2104, idle 0, system 60, user 2044
+```
+
+> Improvement:
+>
+> * User space thread should be able to switch to each other when executing (maybe running with `-rs` or `-rr`)
+> * Understand how `Machine::Run` work (why run multiple time (for each thread))k
 
 ### Exercise 6: Missing page interrupt handling
 
@@ -975,12 +1420,46 @@ printf("%X\n", hexVar);
 
 * [Working with Hexadecimal values in C programming language](https://www.includehelp.com/c/working-with-hexadecimal-values-in-c-programming-language.aspx)
 
+### ANSI Escape Code
+
+* `\033` ESC character (ASCII 27) + `[`
+* SGR parameters (this can have multiple value seperated by `;`)
+* End with `m`
+
+Example:
+
+* `\033[31m`: red
+* `\033[1;31m`: bright red
+* `\033[30;47m`: get black letters on white background
+* `\033[0m`: reset all attributes
+
+Link
+
+* [**Wiki - ANSI escape code**](https://en.wikipedia.org/wiki/ANSI_escape_code#SGR-parameters)
+* [**Stackoverflow - How do I output coloured text to a Linux terminal?**](https://stackoverflow.com/questions/2616906/how-do-i-output-coloured-text-to-a-linux-terminal)
+* Python notes
+  * [Stackoverflow - How to print colored text in terminal in Python?](https://stackoverflow.com/questions/287871/how-to-print-colored-text-in-terminal-in-python)
+
+### Char* vs. Char[]
+
+* [**GeeksforGeeks - What’s difference between char s[] and char *s in C?**](https://www.geeksforgeeks.org/whats-difference-between-char-s-and-char-s-in-c/)
+* [Youtube - C Programming in Linux Tutorial #018 - Char Pointer vs Array Char](https://www.youtube.com/watch?v=gIVeisHb4xY)
+* [GeeksforGeeks - char* vs std:string vs char[] in C++](https://www.geeksforgeeks.org/char-vs-stdstring-vs-char-c/)
+* [GeeksforGeeks - Difference between const char *p, char * const p and const char * const p](https://www.geeksforgeeks.org/difference-const-char-p-char-const-p-const-char-const-p/)
+
+### stack smashing detected Error
+
+The string length is greater than the array size.
+
 ## Improvable Todos
 
 * [ ] [LRU](#LRU)
 * [ ] [Free Linked List](#Free-Linked-List)
+* [ ] [Able to context switch when executing user space thread (interrupt their execution)](#Exercise-5:-Support-multi-threads)
 
 ## Resources
+
+* [**Introducing User Programs into Nachos**](https://users.cs.duke.edu/~raw/cps110.s04/Lectures/NachosUserProgs.pdf)
 
 ### Book
 
@@ -1003,6 +1482,8 @@ printf("%X\n", hexVar);
 * [Sina博客 - Nachos3.4 Lab3 虛擬內存管理 實習報告 TLB異常處理](http://blog.sina.com.cn/s/blog_4ae8f77f01018n63.html)
 * [Sina博客 - Nachos3.4 Lab3 虛擬內存管理 實習報告 分頁式內存管理](http://blog.sina.com.cn/s/blog_4ae8f77f01018n6r.html)
 
+#### TLB Related
+
 Other
 
 * [Nachos Assignment #3: Caching: TLB's and Virtual Memory](http://home.iitk.ac.in/~kbakshay/cs330assignment1/nachos/doc/pdf/vm.pdf)
@@ -1013,9 +1494,15 @@ Another
 
 * [MrOrz/nachos/userprog/exception.cc](https://github.com/MrOrz/nachos/blob/master/userprog/exception.cc)
 * [MrOrz/nachos/userprog/addrspace.cc](https://github.com/MrOrz/nachos/blob/master/userprog/addrspace.cc)
+  * [**AddrSpace::Execute**](https://github.com/MrOrz/nachos/blob/master/userprog/addrspace.cc#L284)
 
 > seems didn't consider TLB
 
 Yet Another
 
 * [Cheejyg/CZ2005-Operating-Systems-Experiment-3-Virtual-Memory](https://github.com/Cheejyg/CZ2005-Operating-Systems-Experiment-3-Virtual-Memory)
+
+#### Multi-thread Related
+
+* [**OPERATING SYSTEM NachOS TD 2: Multithreading**](http://adrien.krahenbuhl.fr/courses/UnivBordeaux/M1-System/System-PracticalWorks2-Multithreading.pdf)
+* [anoopsin/Nachos-402-OS](https://github.com/anoopsin/Nachos-402-OS)
