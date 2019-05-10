@@ -138,10 +138,14 @@ TLBMissHandler(int virtAddr)
 
     // Find the Page
     TranslationEntry page = machine->pageTable[vpn];
-    if (!page.valid) { // Lab4 Exercise7
+#ifndef DEMAND_PAGING
+    ASSERT_MSG(page.valid, "Invalid virtual page number");
+#else // Lab4: Demand paging
+    if (!page.valid) {
         DEBUG('m', COLORED(WARNING, "\t=> Page miss\n"));
         page = PageFaultHandler(vpn);
     }
+#endif
 
     // Update TLB
 #if TLB_FIFO
@@ -240,17 +244,82 @@ TLBAlgoLRU(TranslationEntry page)
 /************************ Lab4: Demand Paging *************************/
 /**********************************************************************/
 
+#ifdef DEMAND_PAGING
+//----------------------------------------------------------------------
+// NaivePageReplacement
+//  1. Find an non-dirty page frame to replace.
+//  2. If not found, then replace a dirty page and write back to disk.
+//  3. Return the page frame number when founded or after replacement.
+//----------------------------------------------------------------------
+
+int
+NaivePageReplacement(int vpn)
+{
+    int pageFrame = -1;
+    for (int temp_vpn = 0; temp_vpn < machine->pageTableSize, temp_vpn != vpn; temp_vpn++) {
+        if (machine->pageTable[temp_vpn].valid) {
+            if (!machine->pageTable[temp_vpn].dirty) {
+                pageFrame = machine->pageTable[temp_vpn].physicalPage;
+                break;
+            }
+        }
+    }
+    if (pageFrame == -1) { // No non-dirty entry
+        for (int replaced_vpn = 0; replaced_vpn < machine->pageTableSize, replaced_vpn != vpn; replaced_vpn++) {
+            if (machine->pageTable[replaced_vpn].valid) {
+                machine->pageTable[replaced_vpn].valid = FALSE;
+                pageFrame = machine->pageTable[replaced_vpn].physicalPage;
+
+                // Store the page back to disk
+                OpenFile *vm = fileSystem->Open("VirtualMemory");
+                ASSERT_MSG(vm != NULL, "fail to open virtual memory");
+                vm->WriteAt(&(machine->mainMemory[pageFrame*PageSize]), PageSize, replaced_vpn*PageSize);
+                delete vm; // close file
+                break;
+            }
+        }
+    }
+    return pageFrame;
+}
 
 //----------------------------------------------------------------------
 // PageFaultHandler
-// 	
+// 	1. Find an empty space in memory
+//  2. Load the page frame from disk to memory
+//      * If memory out of space then find a page to replace
+//          * If all pages are dirty, then it need to write back to disk.
 //----------------------------------------------------------------------
 
 TranslationEntry
-PageFaultHandler(int virtAddr)
+PageFaultHandler(int vpn)
 {
+    // Get a Memory space (page frame) to allocate
+#ifdef USE_BITMAP
+    int pageFrame = machine->allocateFrame(); // ppn
+#else
+    ASSERT(FALSE); // No other free memory allocation mechnism yet.
+#endif
+    if (pageFrame == -1) { // Need page replacement
+        pageFrame = NaivePageReplacement(vpn);
+    }
+    machine->pageTable[vpn].physicalPage = pageFrame;
 
+    // Load the Page from virtual memory
+    DEBUG('a', "Demand paging: loading page from virtual memory!\n");
+    OpenFile *vm = fileSystem->Open("VirtualMemory"); // This file is created in userprog/addrspace.cc
+    ASSERT_MSG(vm != NULL, "fail to open virtual memory");
+    vm->ReadAt(&(machine->mainMemory[pageFrame*PageSize]), PageSize, vpn*PageSize);
+    delete vm; // close the file
+
+    // Set the page attributes
+    machine->pageTable[vpn].valid = TRUE;
+    machine->pageTable[vpn].use = FALSE;
+    machine->pageTable[vpn].dirty = FALSE;
+    machine->pageTable[vpn].readOnly = FALSE;
+
+    currentThread->space->PrintState(); // debug with -d M to show bitmap
 }
+#endif
 
 /**********************************************************************/
 /*************************** Lab6: Syscall ****************************/
