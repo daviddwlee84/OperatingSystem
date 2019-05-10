@@ -92,8 +92,6 @@ class Instruction {
 };
 
 // Lab4: Global data structure for memory management
-#define USE_BITMAP TRUE
-// #define USE_LINKED_LIST TRUE
 
 // The following class defines the simulated host workstation hardware, as 
 // seen by user programs -- the CPU registers, main memory, etc.
@@ -189,7 +187,7 @@ class Machine {
 
 #ifdef USER_PROGRAM
 		// Lab4: Global data structure for memory management
-#if USE_BITMAP
+#if USE_BITMAP || INVERTED_PAGETABLE
 		unsigned int bitmap; // This can record 32 allocation units (sizeof(int)*8 = 32). Current NumPhysPages is 32 too.
 		int allocateFrame(void); // Find a empty allocation unit to put physical page frames
 		void freeMem(void); // Free current page table physical page frames

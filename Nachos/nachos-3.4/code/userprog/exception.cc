@@ -369,13 +369,13 @@ void AddressSpaceControlHandler(int type)
 
 #ifdef USER_PROGRAM
         if (currentThread->space != NULL) {
-#ifdef USE_BITMAP
-            machine->freeMem(); // ONLY USE FOR TEST Lab4 Exercise4
+#if USE_BITMAP || INVERTED_PAGETABLE
+            machine->freeMem();
 #endif
             delete currentThread->space;
             currentThread->space = NULL;
         }
-#endif
+#endif // USER_PROGRAM
         // TODO: if it has parent, then set this to zombie and signal
         currentThread->Finish();
     }

@@ -90,6 +90,7 @@ AddrSpace::AddrSpace(OpenFile *executable)
     ASSERT_MSG(success_create_vm, "fail to create virtual memory");
 #endif
 
+#ifndef INVERTED_PAGETABLE
     DEBUG('a', "Initializing address space (page table), num pages %d, size %d\n", 
 					numPages, size);
 // first, set up the translation 
@@ -118,7 +119,19 @@ AddrSpace::AddrSpace(OpenFile *executable)
     }
 #if USE_BITMAP && !DEMAND_PAGING
     DEBUG('M', "Bitmap after allocate: %08X\n", machine->bitmap);
-#endif
+#endif // DEMAND_PAGING
+#else // Use Inverted Page Table
+    for (i = 0; i < numPages; i++) {
+        machine->pageTable[i].physicalPage = machine->allocateFrame(); // Currently don't support demand paging
+        machine->pageTable[i].valid = TRUE;
+        machine->pageTable[i].use = FALSE;
+        machine->pageTable[i].dirty = FALSE;
+        machine->pageTable[i].readOnly = FALSE;
+
+        machine->pageTable[i].threadId = currentThread->getThreadId(); // The additional part of inverted page table
+    }
+    DEBUG('M', "Initialized memory for thread \"%s\".\n", currentThread->getName());
+#endif // INVERTED_PAGETABLE
     
 #ifndef DEMAND_PAGING // If use lazy loading then don't load executable into memory at first.
 // zero out the entire (needed) address space (size), to zero the unitialized data segment 
@@ -277,10 +290,14 @@ void AddrSpace::SaveState()
 //      For now, tell the machine where to find the page table.
 //----------------------------------------------------------------------
 
-void AddrSpace::RestoreState() 
+void AddrSpace::RestoreState()
 {
+// If using inverted page table, because there is only one page table (for a machine)
+// So we won't need the address space page table
+#ifndef INVERTED_PAGETABLE
     machine->pageTable = pageTable;
     machine->pageTableSize = numPages;
+#endif
 }
 
 //----------------------------------------------------------------------
