@@ -142,9 +142,9 @@ Each directory is a Directory File. The entroy of the Directory File can be Dire
 
 #### Unix File System Arrangement
 
-#### FAT File System Arrangement
+#### MS DOS File System (FAT Structure) Arrangement
 
-> FAT stands for File Allocation Table 文件分配表
+> DOS stands for Disk Operating System; FAT stands for File Allocation Table 文件分配表
 
 #### NTFS File System Arrangement
 
@@ -167,6 +167,15 @@ Each directory is a Directory File. The entroy of the Directory File can be Dire
     * Pros
     * Cons
   * e.g. [Unix](#Index-Structure-in-Unix)
+
+| -                           | Continuous Structure | Linked Structure                                       | Indexed Structure            |
+| --------------------------- | -------------------- | ------------------------------------------------------ | ---------------------------- |
+| Dynamic Allocation          | Unable               | Able                                                   | Able                         |
+| Sepcific file length Create | Yes                  | No                                                     | No                           |
+| Well use free space         | No                   | Yes                                                    | Yes                          |
+| Access Method               | Sequential access    | Sequential access (mainly) (FAT support Random access) | Sequential and Random access |
+| Access Speed                | Fast                 | Slower                                                 | Fast                         |
+| Classic System              | Disk Tape File       | MS-DOS                                                 | UNIX                         |
 
 #### Linked Structure in FAT
 
