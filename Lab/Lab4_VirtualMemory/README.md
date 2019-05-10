@@ -801,7 +801,7 @@ We have seen in [Executing User Program](#Executing-User-Program). We will call 
 > * [OS Memory Management with Bitmaps](https://codescracker.com/operating-system/memory-management-with-bitmaps.htm)
 > * [OS Memory Management with Linked Lists](https://codescracker.com/operating-system/memory-management-with-linked-lists.htm)
 
-I have used some define as the switch for choosing the data structure for memory management. And just enable in `code/machine/machine.h`
+I have used some define as the switch for choosing the data structure for memory management. And just enable in `code/userprog/Makefile`
 
 * USE_BITMAP
 * USE_LINKED_LIST (TODO)
@@ -1713,10 +1713,189 @@ Ticks: total 1038, idle 0, system 10, user 1028
 
 > Add `SUSPENDED` state for Thread. And implement the switching between `SUSPENDED`, `READY` and `BLOCKED`
 
+TODO
+
 ### Challenge 2
 
 > The defect of Hierarchical Paging (multi-level page table) is the page table size is *in direct ratio to* virtual address space.
 > To reduce the consumption on physical page table. Implement inverted page table on Nachos.
+
+![Inverted Page Table](https://media.geeksforgeeks.org/wp-content/uploads/33-6.png)
+
+As the research, the inverted page table is just like the Bitmap + Page Table.
+This is not a normal page table that is under the `AddrSpace` of each user program thread. Instead, it should be under machine, just like the bitmap.
+
+> Define `INVERTED_PAGETABLE` to test this challenge.
+
+#### Modify the Structure
+
+Add the thread ID attribute to page table entry in `code/machine/translate.h`
+
+```c
+class TranslationEntry {
+    ...
+#ifdef INVERTED_PAGETABLE // Lab4: Inverted Page Table
+    int threadId;
+#endif
+};
+```
+
+Because we only use the inverted page table under machine. Just modify the original context switch routine in `code/userprog/addrspace.cc`.
+
+```c
+void AddrSpace::RestoreState()
+{
+// If using inverted page table, because there is only one page table (for a machine)
+// So we won't need the address space page table
+#ifndef INVERTED_PAGETABLE
+    machine->pageTable = pageTable;
+    machine->pageTableSize = numPages;
+#endif
+}
+
+```
+
+We'll share the same function name with bitmap but with different implementation in `code/machine/machine.cc`
+
+```c
+int
+Machine::allocateFrame(void)
+{
+    for (int i = 0; i < NumPhysPages; i++) {
+        if (!pageTable[i].valid) {
+            return i;
+        }
+    }
+    ASSERT_MSG(FALSE, "Out of physical page frame! Current inverted page table don't support demand paging!")
+    return -1;
+}
+```
+
+```c
+void
+Machine::freeMem(void)
+{
+    for (int i = 0; i < NumPhysPages; i++) {
+        if (pageTable[i].threadId == currentThread->getThreadId()) {
+            pageTable[i].valid = FALSE;
+            DEBUG('M', "Free physical page frame: %d\n", i);
+        }
+    }
+    DEBUG('M', "Freed the memory hold by thread \"%s\".\n", currentThread->getName());
+}
+```
+
+#### Initializing the inverted page table
+
+Just like bitmap, when we start/create the machine, we need to initialize it. (in `code/machine/machine.cc`)
+
+```c
+Machine::Machine(bool debug)
+{
+#if USE_BITMAP && INVERTED_PAGETABLE
+    ASSERT_MSG(FALSE, "we must have either a Bitmap or a Inverted Page Table, but not both!");
+#endif
+
+    ...
+
+    pageTable = new TranslationEntry[NumPhysPages];
+    // Initialize Inverted Page Table
+    for (i = 0; i < NumPhysPages; i++) {
+        pageTable[i].physicalPage = i;
+        pageTable[i].virtualPage = i;
+        pageTable[i].valid = FALSE;
+        pageTable[i].dirty = FALSE;
+        pageTable[i].readOnly = FALSE;
+        pageTable[i].threadId = -1;
+    }
+    pageTableSize = MemorySize;
+
+    ...
+}
+```
+
+> we don't need `virtualPage` actually.
+
+And when we execute user program, we need to load the executable into memory. (in `code/userprog/addrspace.cc`)
+
+```c
+AddrSpace::AddrSpace(OpenFile *executable)
+{
+    ...
+
+    for (i = 0; i < numPages; i++) {
+        machine->pageTable[i].physicalPage = machine->allocateFrame(); // Currently don't support demand paging
+        machine->pageTable[i].valid = TRUE;
+        machine->pageTable[i].use = FALSE;
+        machine->pageTable[i].dirty = FALSE;
+        machine->pageTable[i].readOnly = FALSE;
+
+        machine->pageTable[i].threadId = currentThread->getThreadId(); // The additional part of inverted page table
+    }
+    DEBUG('M', "Initialized memory for thread \"%s\".\n", currentThread->getName());
+
+    ...
+}
+```
+
+#### Translate the Address
+
+Finally, we need to translate the "physical page number + thread id" to the memory.
+
+I've built on the original code. So the "vpn" variable is actually means "ppn".
+
+```c
+ExceptionType
+Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
+{
+    ...
+
+    if (tlb == NULL) {
+        if (vpn >= pageTableSize) {
+            DEBUG('a', "virtual page # %d too large for page table size %d!\n",
+                  virtAddr, pageTableSize);
+            return AddressErrorException;
+        } else if (!pageTable[vpn].valid) {
+            DEBUG('a', "virtual page # %d is invalid!\n");
+            return PageFaultException;
+        } else if (!(pageTable[vpn].threadId == currentThread->getThreadId())) {
+            ASSERT_MSG(FALSE, "A thread is accessing other thread's address space!");
+        }
+        entry = &pageTable[vpn];
+    }
+
+    ...
+}
+```
+
+#### Pure inverted index page table test on user program
+
+I use the exit user program to test and the pages is allocated and freed as we expected!
+
+```txt
+$ docker run -it nachos_userprog nachos/nachos-3.4/code/userprog/nachos -d MS -x nachos/nachos-3.4/code/test/exit
+Initialized memory for thread "main".
+User program exit with status 87
+Free physical page frame: 0
+Free physical page frame: 1
+Free physical page frame: 2
+Free physical page frame: 3
+Free physical page frame: 4
+Free physical page frame: 5
+Free physical page frame: 6
+Free physical page frame: 7
+Free physical page frame: 8
+Free physical page frame: 9
+Free physical page frame: 10
+Freed the memory hold by thread "main".
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+
+Ticks: total 1030, idle 0, system 10, user 1020
+```
+
+> TODO: with TLB, Demand Paging
 
 ## Trouble Shooting
 
@@ -1778,6 +1957,7 @@ The string length is greater than the array size.
 * [ ] [LRU](#LRU)
 * [ ] [Free Linked List](#Free-Linked-List)
 * [ ] [Able to context switch when executing user space thread (interrupt their execution)](#Exercise-5:-Support-multi-threads)
+* [ ] [Inverted Page Table with TLB and Demand Paging](#Pure-inverted-index-page-table-test-on-user-program)
 
 ## Resources
 
