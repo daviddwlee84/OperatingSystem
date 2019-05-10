@@ -1369,8 +1369,9 @@ Ticks: total 2104, idle 0, system 60, user 2044
 
 > Improvement:
 >
-> * User space thread should be able to switch to each other when executing (maybe running with `-rs` or `-rr`)
-> * Understand how `Machine::Run` work (why run multiple time (for each thread))k
+> * User space thread should be able to switch to each other when executing (maybe running with `-rs` or `-rr`).
+> * Seems that the memory didn't load as we expect. Because of the original memory is loaded sequentially. But actually we need to load it on what the bitmap allocate to us. (in `AddrSpace::AddrSpace`)
+> * Understand how `Machine::Run` work (why run multiple time (for each thread))
 
 ### Exercise 6: Missing page interrupt handling
 
@@ -1378,12 +1379,333 @@ Ticks: total 2104, idle 0, system 60, user 2044
 >
 > (The TLB exception mechanism is loading the page in memory from memory to TLB. Thus, missing page handler is to load new page from disk to memory)
 
+We need to generate page fault, that is the page in page table is invalid (unloaded) and we load it from disk to memory.
+
+#### Virtual Memory
+
+So I use a file to act as "virtual memory" that contain the file's code and data segment (if any).
+
+And here is the modification on creating address space (`AddrSpace::AddrSpace`) (define `DEMAND_PAGING` to enable the code, see more explanaiton [here](#III.-Lazy-loading-(i.e.-Demand-Paging)))
+
+```c
+AddrSpace::AddrSpace(OpenFile *executable)
+{
+    ...
+
+    // Create a virtual memory with the size that the executable file need.
+    DEBUG('a', "Demand paging: creating virtual memory!\n");
+    bool success_create_vm = fileSystem->Create("VirtualMemory", size);
+    ASSERT_MSG(success_create_vm, "fail to create virtual memory");
+
+    // Initialize page table
+    pageTable = new TranslationEntry[numPages];
+    for (i = 0; i < numPages; i++) {
+        ...
+
+        pageTable[i].valid = FALSE;
+
+        ...
+    }
+
+    bzero(machine->mainMemory, MemorySize);
+
+    DEBUG('a', "Demand paging: copy executable to virtual memory!\n");
+
+    OpenFile *vm = fileSystem->Open("VirtualMemory");
+
+    char *virtualMemory_temp;
+    virtualMemory_temp = new char[size];
+    for (i = 0; i < size; i++)
+        virtualMemory_temp[i] = 0;
+
+    if (noffH.code.size > 0) {
+        DEBUG('a', "\tCopying code segment, at 0x%x, size %d\n",
+              noffH.code.virtualAddr, noffH.code.size);
+        executable->ReadAt(&(virtualMemory_temp[noffH.code.virtualAddr]),
+                           noffH.code.size, noffH.code.inFileAddr);
+        vm->WriteAt(&(virtualMemory_temp[noffH.code.virtualAddr]),
+                    noffH.code.size, noffH.code.virtualAddr*PageSize);
+    }
+    if (noffH.initData.size > 0) {
+        DEBUG('a', "\tCopying data segment, at 0x%x, size %d\n",
+              noffH.initData.virtualAddr, noffH.initData.size);
+        executable->ReadAt(&(virtualMemory_temp[noffH.initData.virtualAddr]),
+                           noffH.initData.size, noffH.initData.inFileAddr);
+        vm->WriteAt(&(virtualMemory_temp[noffH.initData.virtualAddr]),
+                    noffH.initData.size, noffH.initData.virtualAddr*PageSize);
+    }
+    delete vm; // Close the file
+}
+```
+
+Here is the explination of the changes
+
+1. `pageTable[i].valid = FALSE;` means we don't load any physical segment from disk to page. (you can see the first page will page fault on [later test](#Test-with-user-program)). But it's okay to load the fist few pages at first to reduce the page fault rate.
+2. I've created a file call "VirtualMemory". This will be created at where the `nachos` executable at (the root directory, in this case `code/userprog/`).
+   * Copy the code and data segment from "executable" to "vm"
+
+> Note that, when the position offset of "executable" is `noffH.code.inFileAddr`, where we need to write in virtual memory is `noffH.code.virtualAddr*PageSize`.
+> Because in real file there is a header. But in virtual memory, there are only code and data segments!
+>
+> (If miss this will mess the instruction decode, and probabily will cause infinity loop!)
+
+#### Missing Page Handling
+
+In the TLB exercise, I've left a space for Missing Page page fault in `code/userprog/exception.cc`.
+
+When we failed to find a valid page, it will cause missing page page fault.
+
+```c
+void
+TLBMissHandler(int virtAddr)
+{
+    unsigned int vpn;
+    vpn = (unsigned) virtAddr / PageSize;
+
+    // Find the Page
+    TranslationEntry page = machine->pageTable[vpn];
+    if (!page.valid) { // Lab4: Demand paging
+        DEBUG('m', COLORED(WARNING, "\t=> Page miss\n"));
+        page = PageFaultHandler(vpn);
+    }
+
+    ...
+```
+
+And here is how the `PageFaultHandler` do:
+
+1. Find an empty space in memory with `machine->allocateFrame()` (this is implemented by [Exercise 4](#Exercise-4:-Global-data-structure-for-memory-management))
+2. Load the page frame from disk to memory
+    * If memory out of space then find a page to replace using `NaivePageReplacement`. This will be explain in the [Exercise 7](#Naive-Page-Replacement)
+
+```c
+TranslationEntry
+PageFaultHandler(int vpn)
+{
+    // Get a Memory space (page frame) to allocate
+    int pageFrame = machine->allocateFrame(); // ppn
+    if (pageFrame == -1) { // Need page replacement
+        pageFrame = NaivePageReplacement(vpn);
+    }
+    machine->pageTable[vpn].physicalPage = pageFrame;
+
+    // Load the Page from virtual memory
+    DEBUG('a', "Demand paging: loading page from virtual memory!\n");
+    OpenFile *vm = fileSystem->Open("VirtualMemory"); // This file is created in userprog/addrspace.cc
+    ASSERT_MSG(vm != NULL, "fail to open virtual memory");
+    vm->ReadAt(&(machine->mainMemory[pageFrame*PageSize]), PageSize, vpn*PageSize);
+    delete vm; // close the file
+
+    // Set the page attributes
+    machine->pageTable[vpn].valid = TRUE;
+    machine->pageTable[vpn].use = FALSE;
+    machine->pageTable[vpn].dirty = FALSE;
+    machine->pageTable[vpn].readOnly = FALSE;
+
+    currentThread->space->PrintState(); // debug with -d M to show bitmap
+}
+```
+
 ## III. Lazy-loading (i.e. Demand Paging)
+
+Notice that in `code/userprog/Makefile` it enable micros `DEFINES = -DFILESYS_NEEDED -DFILESYS_STUB` on default.
+That we need to use "disk" to build the scenario to make the "page fault"
+
+I've also made the `-DDEMAND_PAGING` to enable demand paging when we need it.
+
+> Use `-d s` to enable single step debug
+>
+> `docker run -it nachos_userprog nachos/nachos-3.4/code/userprog/nachos -s -d amM -x nachos/nachos-3.4/code/test/halt`
 
 ### Exercise 7: Loading page on demand
 
 > Nachos allocate memory must be completed once the user program is loaded into memory. Thus the user program size is strictly restrict to be lower than 4KB.
 > Implement a lazy-loading algorithm that load the page from disk to memory if and only if the missing page exception occur.
+
+#### Naive Page Replacement
+
+> This is the continus part of the [last Experiment](#Missing-Page-Handling)
+
+1. Find an non-dirty page frame to replace.
+2. If not found, then replace a dirty page and write back to disk.
+3. Return the page frame number when founded or after replacement.
+
+```c
+int
+NaivePageReplacement(int vpn)
+{
+    int pageFrame = -1;
+    for (int temp_vpn = 0; temp_vpn < machine->pageTableSize, temp_vpn != vpn; temp_vpn++) {
+        if (machine->pageTable[temp_vpn].valid) {
+            if (!machine->pageTable[temp_vpn].dirty) {
+                pageFrame = machine->pageTable[temp_vpn].physicalPage;
+                break;
+            }
+        }
+    }
+    if (pageFrame == -1) { // No non-dirty entry
+        for (int replaced_vpn = 0; replaced_vpn < machine->pageTableSize, replaced_vpn != vpn; replaced_vpn++) {
+            if (machine->pageTable[replaced_vpn].valid) {
+                machine->pageTable[replaced_vpn].valid = FALSE;
+                pageFrame = machine->pageTable[replaced_vpn].physicalPage;
+
+                // Store the page back to disk
+                OpenFile *vm = fileSystem->Open("VirtualMemory");
+                ASSERT_MSG(vm != NULL, "fail to open virtual memory");
+                vm->WriteAt(&(machine->mainMemory[pageFrame*PageSize]), PageSize, replaced_vpn*PageSize);
+                delete vm; // close file
+                break;
+            }
+        }
+    }
+    return pageFrame;
+}
+```
+
+#### Test with user program
+
+Halt user program
+
+```txt
+$ docker run -it nachos_userprog nachos/nachos-3.4/code/userprog/nachos -d TM -x nachos/nachos-3.4/code/test/halt
+Allocate physical page frame: 0
+=== Address Space Information ===
+numPages = 10
+VPN     PPN     valid   RO      use     dirty
+0       0       1       0       0       0
+1       0       0       0       0       0
+2       0       0       0       0       0
+3       0       0       0       0       0
+4       0       0       0       0       0
+5       0       0       0       0       0
+6       0       0       0       0       0
+7       0       0       0       0       0
+8       0       0       0       0       0
+9       0       0       0       0       0
+Current Bitmap: 00000001
+=================================
+Allocate physical page frame: 1
+=== Address Space Information ===
+numPages = 10
+VPN     PPN     valid   RO      use     dirty
+0       0       1       0       0       0
+1       1       1       0       0       0
+2       0       0       0       0       0
+3       0       0       0       0       0
+4       0       0       0       0       0
+5       0       0       0       0       0
+6       0       0       0       0       0
+7       0       0       0       0       0
+8       0       0       0       0       0
+9       0       0       0       0       0
+Current Bitmap: 00000003
+=================================
+Allocate physical page frame: 2
+=== Address Space Information ===
+numPages = 10
+VPN     PPN     valid   RO      use     dirty
+0       0       1       0       0       0
+1       1       1       0       0       0
+2       0       0       0       0       0
+3       0       0       0       0       0
+4       0       0       0       0       0
+5       0       0       0       0       0
+6       0       0       0       0       0
+7       0       0       0       0       0
+8       0       0       0       0       0
+9       2       1       0       0       0
+Current Bitmap: 00000007
+=================================
+TLB Miss: 6, TLB Hit: 11, Total Instruction: 17, Total Translate: 23, TLB Miss Rate: 35.29%
+Machine halting!
+
+Ticks: total 28, idle 0, system 10, user 18
+```
+
+Exit user program
+
+```txt
+$ docker run -it nachos_userprog nachos/nachos-3.4/code/userprog/nachos -d TM -x nachos/nachos-3.4/code/test/exit
+Allocate physical page frame: 0
+=== Address Space Information ===
+numPages = 11
+VPN     PPN     valid   RO      use     dirty
+0       0       1       0       0       0
+1       0       0       0       0       0
+2       0       0       0       0       0
+3       0       0       0       0       0
+4       0       0       0       0       0
+5       0       0       0       0       0
+6       0       0       0       0       0
+7       0       0       0       0       0
+8       0       0       0       0       0
+9       0       0       0       0       0
+10      0       0       0       0       0
+Current Bitmap: 00000001
+=================================
+Allocate physical page frame: 1
+=== Address Space Information ===
+numPages = 11
+VPN     PPN     valid   RO      use     dirty
+0       0       1       0       0       0
+1       1       1       0       0       0
+2       0       0       0       0       0
+3       0       0       0       0       0
+4       0       0       0       0       0
+5       0       0       0       0       0
+6       0       0       0       0       0
+7       0       0       0       0       0
+8       0       0       0       0       0
+9       0       0       0       0       0
+10      0       0       0       0       0
+Current Bitmap: 00000003
+=================================
+Allocate physical page frame: 2
+=== Address Space Information ===
+numPages = 11
+VPN     PPN     valid   RO      use     dirty
+0       0       1       0       0       0
+1       1       1       0       0       0
+2       0       0       0       0       0
+3       0       0       0       0       0
+4       0       0       0       0       0
+5       0       0       0       0       0
+6       0       0       0       0       0
+7       0       0       0       0       0
+8       0       0       0       0       0
+9       0       0       0       0       0
+10      2       1       0       0       0
+Current Bitmap: 00000007
+=================================
+Allocate physical page frame: 3
+=== Address Space Information ===
+numPages = 11
+VPN     PPN     valid   RO      use     dirty
+0       0       1       0       0       0
+1       1       1       0       0       0
+2       3       1       0       0       0
+3       0       0       0       0       0
+4       0       0       0       0       0
+5       0       0       0       0       0
+6       0       0       0       0       0
+7       0       0       0       0       0
+8       0       0       0       0       0
+9       0       0       0       0       0
+10      2       1       0       0       0
+Current Bitmap: 0000000F
+=================================
+TLB Miss: 8, TLB Hit: 1319, Total Instruction: 1327, Total Translate: 1335, TLB Miss Rate: 0.60%
+Free physical page frame: 0
+Free physical page frame: 1
+Free physical page frame: 3
+Free physical page frame: 2
+Bitmap after freed: 00000000
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+
+Ticks: total 1038, idle 0, system 10, user 1028
+```
 
 ## Challenges
 
@@ -1477,7 +1799,7 @@ The string length is greater than the array size.
 
 ### Example
 
-* [**Baidu文庫 - nachos Lab4實習報告**](https://wenku.baidu.com/view/be56dfe2541810a6f524ccbff121dd36a32dc430.html)
+* [**Baidu文庫 - nachos Lab4實習報告**](https://wenku.baidu.com/view/be56dfe2541810a6f524ccbff121dd36a32dc430.html) - has some obvious error on Exercise 2, 5, 6, 7
 * [Baidu文庫 - 北大操作系統高級課程-陳向群作業-虛擬內存管理實習報告](https://wenku.baidu.com/view/420a3f6b04a1b0717ed5dd79.html)
 * [Sina博客 - Nachos3.4 Lab3 虛擬內存管理 實習報告 TLB異常處理](http://blog.sina.com.cn/s/blog_4ae8f77f01018n63.html)
 * [Sina博客 - Nachos3.4 Lab3 虛擬內存管理 實習報告 分頁式內存管理](http://blog.sina.com.cn/s/blog_4ae8f77f01018n6r.html)
