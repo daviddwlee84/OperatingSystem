@@ -148,6 +148,8 @@ StartTwoThread(char *filename)
     Thread *thread1 = CreateSingleThread(executable, 1);
     Thread *thread2 = CreateSingleThread(executable, 2);
 
+    // machine->DumpMemory(); // debug: shows current memory state
+
     delete executable;			// close file
 
     thread1->Fork(UserProgThread, (void*)1);

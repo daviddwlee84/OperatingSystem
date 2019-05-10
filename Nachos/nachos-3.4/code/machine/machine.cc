@@ -107,7 +107,7 @@ Machine::~Machine()
 void
 Machine::RaiseException(ExceptionType which, int badVAddr)
 {
-    DEBUG('m', "Exception: %s\n", exceptionNames[which]);
+    DEBUG('m', COLORED(WARNING, "Exception: %s\n"), exceptionNames[which]);
     
 //  ASSERT(interrupt->getStatus() == UserMode);
     registers[BadVAddrReg] = badVAddr;
@@ -202,6 +202,28 @@ Machine::DumpState()
 }
 
 //----------------------------------------------------------------------
+// Machine::DumpMemory
+// 	Print the machine memory state (and Bitmap if any).
+//
+//  (still have some bug)
+//----------------------------------------------------------------------
+
+void
+Machine::DumpMemory()
+{
+#if USER_PROGRAM && USE_BITMAP
+    printf("Bitmap: %08X\n", bitmap); 
+#endif
+    printf("Machine memory:\n");
+    printf("-----------------------------------------------------------------------------------------------------------------------------------------");
+    for (int i = 0; i < MemorySize; i++) {
+        if (i % PageSize == 0) printf("\n%2d|", i/PageSize);
+        printf("%X", mainMemory[i]);
+	}
+    printf("\n-----------------------------------------------------------------------------------------------------------------------------------------\n");
+}
+
+//----------------------------------------------------------------------
 // Machine::ReadRegister/WriteRegister
 //   	Fetch or write the contents of a user program register.
 //----------------------------------------------------------------------
@@ -255,9 +277,11 @@ void
 Machine::freeMem(void)
 {
     for (int i = 0; i < pageTableSize; i++) {
-        int pageFrameNum = pageTable[i].physicalPage;
-        bitmap &= ~(0x1 << pageFrameNum);
-        DEBUG('M', "Free physical page frame: %d\n", pageFrameNum);
+        if (pageTable[i].valid) { // Free the "used" page frame
+            int pageFrameNum = pageTable[i].physicalPage;
+            bitmap &= ~(0x1 << pageFrameNum);
+            DEBUG('M', "Free physical page frame: %d\n", pageFrameNum);
+        }
     }
     DEBUG('M', "Bitmap after freed: %08X\n", bitmap);
 }
