@@ -339,3 +339,37 @@ FileSystem::Print()
     delete freeMap;
     delete directory;
 } 
+
+//----------------------------------------------------------------------
+// getFileExtension
+//    Extract the file name to get the extension. If the file name don't
+//    have extension then return empty string. 
+//
+//      e.g. test.haha.pdf => "pdf"
+//      e.g. test.txt      => txt
+//      e.g. test.         => ""
+//      e.g. test          => ""
+//----------------------------------------------------------------------
+
+const char*
+getFileExtension(const char *filename)
+{
+    const char *dot = strrchr(filename, '.');
+    if(!dot || dot == filename) return "";
+    return dot + 1;
+}
+
+//----------------------------------------------------------------------
+// getCurrentTime
+//    Return the time (struct tm*) that we called it.
+//
+//    (use asctime to transfer to string)
+//----------------------------------------------------------------------
+
+struct tm*
+getCurrentTime(void)
+{
+    time_t rawtime;
+    time(&rawtime);
+    return localtime(&rawtime);
+}

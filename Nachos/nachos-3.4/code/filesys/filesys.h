@@ -92,6 +92,9 @@ class FileSystem {
 					// file names, represented as a file
 };
 
+extern const char *getFileExtension(const char *filename);
+extern struct tm* getCurrentTime(void);
+
 #endif // FILESYS
 
 #endif // FS_H
