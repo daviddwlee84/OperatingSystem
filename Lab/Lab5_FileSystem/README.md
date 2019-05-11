@@ -13,6 +13,134 @@
 >     * After implement the hierarchical directory, add or delete the directory entry must according specific path (it's important to understand the "tree traversal")
 > 3. To implement the infinity file length, it's good to try to use mixed indexed allocation method
 
+Test the original file system:
+
+* Before format the disk (or delete the `code/filesys/DISK` file)
+
+    ```txt
+    $ docker run -it nachos_filesys nachos/nachos-3.4/code/filesys/nachos -D
+    Bit map file header:
+    FileHeader contents.  File size: 0.  File blocks:
+
+    File contents:
+    Directory file header:
+    FileHeader contents.  File size: 0.  File blocks:
+
+    File contents:
+    Bitmap set:
+
+    Directory contents:
+    ```
+
+* Format the disk and show the debug message
+
+    ```txt
+    $ docker run -it nachos_filesys nachos/nachos-3.4/code/filesys/nachos -f -d d
+    Initializing the disk, 0x8054a56 0x818f258
+    Request latency = 16480
+    Writing to sector 0
+    Writing sector: 0
+    80 1 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+    Updating last sector = 0, 0
+    Request latency = 16470
+    Writing to sector 1
+    Writing sector: 1
+    c8 2 3 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+    Updating last sector = 1, 0
+    Request latency = 500
+    Reading from sector 0
+    Reading sector: 0
+    80 1 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+    Updating last sector = 0, 0
+    Request latency = 500
+    Reading from sector 1
+    Reading sector: 1
+    c8 2 3 4 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+    Updating last sector = 1, 0
+    Request latency = 15410
+    Writing to sector 2
+    Writing sector: 2
+    1f 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+    Updating last sector = 2, 0
+    Request latency = 500
+    Reading from sector 4
+    Reading sector: 4
+    0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+    Updating last sector = 4, 0
+    Request latency = 15940
+    Writing to sector 3
+    Writing sector: 3
+    0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+    Updating last sector = 3, 0
+    Request latency = 16470
+    Writing to sector 4
+    Writing sector: 4
+    0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+    Updating last sector = 4, 0
+    ```
+
+* Format and show the directory
+
+    ```txt
+    $ docker run -it nachos_filesys nachos/nachos-3.4/code/filesys/nachos -f -D  
+    Bit map file header:
+    FileHeader contents.  File size: 128.  File blocks:
+    2
+    File contents:
+    \1f\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+    Directory file header:
+    FileHeader contents.  File size: 200.  File blocks:
+    3 4
+    File contents:
+    \0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+    \0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+    Bitmap set:
+    0, 1, 2, 3, 4,
+    Directory contents:
+    ```
+
+* Copy file to disk and print
+
+    ```txt
+    $ docker run -it nachos_filesys nachos/nachos-3.4/code/filesys/nachos -f -cp nachos/nachos-3.4/code/filesys/test/big big -p big
+    This is the spring of our discontent.
+    This is the spring of our discontent.
+    This is the spring of our discontent.
+    This is the spring of our discontent.
+    This is the spring of our discontent.
+    This is the spring of our discontent.
+    This is the spring of our discontent.
+    This is the spring of our discontent.
+    This is the spring of our discontent.
+    This is the spring of our discontent.
+    This is the spring of our discontent.
+    This is the spring of our discontent.
+    This is the spring of our discontent.
+    This is the spring of our discontent.
+    This is the spring of our discontent.
+    This is the spring of our discontent.
+    ```
+
+* Run my test script that I put in `code/filesys/test/my_test_script1.sh` using `docker run -it nachos_filesys nachos/nachos-3.4/code/filesys/test/my_test_script1.sh` (I've set it to executable file). Here is the content of the script.
+
+    ```sh
+    #!/bin/sh
+    # goto filesys/ in docker
+    cd /nachos/nachos-3.4/code/filesys
+
+    ./nachos -f # format the DISK
+    ./nachos -cp test/big big # copies a file from UNIX to Nachos
+    # Files: big
+    ./nachos -cp test/small small
+    # Files: big, small
+    ./nachos -l # lists the contents of the Nachos directory
+    # big
+    # small
+    ./nachos -r big # remove the file "big" from Nachos
+    ./nachos -D # prints the contents of the entire file system 
+    ./nachos -t # tests the performance of the Nachos file system
+    ```
+
 ## I. Basic Operation of the File System
 
 ### Exercise 1: Trace code
@@ -46,6 +174,8 @@ Nachos File System
 +-----------------------------------+
 ```
 
+![Nachos Study Book Nachos File System Structure](NachosFileSystemStructure.jpg)
+
 ```txt
 Disk Allocation Structure
 
@@ -57,6 +187,12 @@ Disk Allocation Structure
   |
  0#: System bitmap file's i-node
 ```
+
+#### The Virtual Disk
+
+> This is implemented in `code/machine/disk.h` and `code/machine/disk.cc`
+
+TBD
 
 #### Synchronize Disk
 
@@ -102,6 +238,11 @@ Main operations
 * `FileSystem::Open`
 * `FileSystem::Remove`
 
+> Stub File System
+>
+> If use the `FILESYS_STUB` flag, Nachos will use the UNIX file system calls instead of its own.
+> In the previous lab it use this, but in this lab we will use `FILESYS` instead.
+
 #### File Header
 
 > This is implemented in `code/filesys/filehdr.h` and `code/filesys/filehdr.cc`.
@@ -133,6 +274,16 @@ Current Nachos only has single-layer directory (i.e. root directory). And the si
 > * etc.
 >
 > Try to remove the limit of file name length.
+
+#### Add additional file attributes
+
+As we want to add the additional file attribute we need to modify the file hader (i.e. i-node in UNIX term) in `code/filesys/filehdr.h`
+
+#### Remove limit of file name length
+
+```c
+#define MaxFileSize (NumDirect * SectorSize)
+```
 
 ### Exercise 3: Expand file length (size)
 
@@ -179,6 +330,39 @@ Current Nachos only has single-layer directory (i.e. root directory). And the si
 
 > Redirect openfile I/O method, such that the previous process can output the result to pipe, and the next process can get the data through pipe to console. (e.g. `ps aux | grep haha`)
 
+## Trouble Shooting
+
+### The file system flag don't work problem
+
+Because in the `code/filesys/Makefile` it define the `THREADS` flag.
+
+In the `code/threads/main.cc`, it will consume all the input flag/arguments...
+
+Thus I add the `TEST_FILESYS` flag and modify the original `#ifdef THREADS` to `#if THREADS && !TEST_FILESYS`
+
+> This bug waste me so much times = ="
+
+### time.h
+
+* [gmtime](http://www.cplusplus.com/reference/ctime/gmtime/): Convert time_t to tm as UTC time
+* [asctime](http://www.cplusplus.com/reference/ctime/asctime/): Convert tm structure to string
+
+tm structure
+
+```c
+struct tm {
+   int tm_sec;         /* seconds,  range 0 to 59          */
+   int tm_min;         /* minutes, range 0 to 59           */
+   int tm_hour;        /* hours, range 0 to 23             */
+   int tm_mday;        /* day of the month, range 1 to 31  */
+   int tm_mon;         /* month, range 0 to 11             */
+   int tm_year;        /* The number of years since 1900   */
+   int tm_wday;        /* day of the week, range 0 to 6    */
+   int tm_yday;        /* day in the year, range 0 to 365  */
+   int tm_isdst;       /* daylight saving time             */
+};
+```
+
 ## TODO
 
 * [ ] Fill up more detail in Exercise 1
@@ -193,3 +377,9 @@ Current Nachos only has single-layer directory (i.e. root directory). And the si
     * File Header
     * Directories
     * Putting It All Together
+* [Stackoverflow - Getting file extension in C](https://stackoverflow.com/questions/5309471/getting-file-extension-in-c)
+
+### Example
+
+* [nachos Lab5實習報告](https://wenku.baidu.com/view/04382358f6ec4afe04a1b0717fd5360cbb1a8d40.html)
+* [CSDN - 操作系統課設實驗五---Nachos文件系統擴展](https://blog.csdn.net/zekdot/article/details/83627721)
