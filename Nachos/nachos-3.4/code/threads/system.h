@@ -29,6 +29,9 @@ extern Interrupt *interrupt;			// interrupt status
 extern Statistics *stats;			// performance metrics
 extern Timer *timer;				// the hardware alarm clock
 
+// The "-Q" quiet flag
+extern bool VERBOSE; // print message when machine Halt in machine/interrupt.cc
+
 // Lab1: Thread manipulation variable
 #define MAX_THREAD_NUM 128
 extern bool tid_flag[MAX_THREAD_NUM]; // it's only "declare" and need to define in *.cc

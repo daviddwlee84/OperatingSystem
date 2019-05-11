@@ -65,6 +65,10 @@ extern void StartProcess(char *file), ConsoleTest(char *in, char *out);
 extern void StartTwoThread(char *filename); // Lab4: Multi-thread test
 extern void MailTest(int networkID);
 
+// External variable
+
+bool VERBOSE = TRUE; // print message when machine Halt in machine/interrupt.cc
+
 //----------------------------------------------------------------------
 // main
 // 	Bootstrap the operating system kernel.  
@@ -110,6 +114,8 @@ main(int argc, char **argv)
 	    argCount = 1;
         if (!strcmp(*argv, "-z"))               // print copyright
             printf (copyright);
+        if (!strcmp(*argv, "-Q")) // be quiet (disable dummy machine message)
+            VERBOSE = FALSE;
 #ifdef USER_PROGRAM
         if (!strcmp(*argv, "-x")) {        	// run a user program
 	    ASSERT(argc > 1);

@@ -191,7 +191,8 @@ Initialize(int argc, char **argv)
 void
 Cleanup()
 {
-    printf("\nCleaning up...\n");
+    if (VERBOSE)
+        printf("\nCleaning up...\n");
 #ifdef NETWORK
     delete postOffice;
 #endif

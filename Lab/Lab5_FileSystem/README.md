@@ -122,23 +122,85 @@ Test the original file system:
     ```
 
 * Run my test script that I put in `code/filesys/test/my_test_script1.sh` using `docker run -it nachos_filesys nachos/nachos-3.4/code/filesys/test/my_test_script1.sh` (I've set it to executable file). Here is the content of the script.
+  
+    > I've add additional `-Q` flag functionality in `code/threads/main.cc` that will disable the verbose message of machine. It's useful when we execute multiple file system commands and it won't be mess.
 
     ```sh
     #!/bin/sh
     # goto filesys/ in docker
     cd /nachos/nachos-3.4/code/filesys
 
-    ./nachos -f # format the DISK
-    ./nachos -cp test/big big # copies a file from UNIX to Nachos
+    # use -Q to disable verbose machine messages
+    echo "=== format the DISK ==="
+    ./nachos -Q -f
+    echo "=== copies file \"big\" from UNIX to Nachos ==="
+    ./nachos -Q -cp test/big big
     # Files: big
-    ./nachos -cp test/small small
+    echo "=== copies file \"small\" from UNIX to Nachos ==="
+    ./nachos -Q -cp test/small small
     # Files: big, small
-    ./nachos -l # lists the contents of the Nachos directory
+    echo "=== lists the contents of the Nachos directory ==="
+    ./nachos -Q -l
     # big
     # small
-    ./nachos -r big # remove the file "big" from Nachos
-    ./nachos -D # prints the contents of the entire file system 
-    ./nachos -t # tests the performance of the Nachos file system
+    echo "=== remove the file \"big\" from Nachos ==="
+    ./nachos -Q -r big
+    echo "=== print the content of file \"small\" ==="
+    ./nachos -Q -p small
+    echo "=== prints the contents of the entire file system ==="
+    ./nachos -Q -D
+    echo "=== tests the performance of the Nachos file system ==="
+    ./nachos -Q -t
+    ```
+
+    ```txt
+    $ docker run -it nachos_filesys nachos/nachos-3.4/code/filesys/test/my_test_script1.sh
+    === format the DISK ===
+    === copies file "big" from UNIX to Nachos ===
+    === copies file "small" from UNIX to Nachos ===
+    === lists the contents of the Nachos directory ===
+    big
+    small
+    === remove the file "big" from Nachos ===
+    === print the content of file "small" ===
+    This is the spring of our discontent.
+    === prints the contents of the entire file system ===
+    Bit map file header:
+    FileHeader contents.  File size: 128.  File blocks:
+    2
+    File contents:
+    \1f\18\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+    Directory file header:
+    FileHeader contents.  File size: 200.  File blocks:
+    3 4
+    File contents:
+    \0\0\0\0\5\0\0\0big\0\0\0\0\0\0\0\0\0\1\0\0\0\b\0\0\0small\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+    \0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+    Bitmap set:
+    0, 1, 2, 3, 4, 11, 12,
+    Directory contents:
+    Name: small, Sector: 11
+    FileHeader contents.  File size: 38.  File blocks:
+    12
+    File contents:
+    This is the spring of our discontent.\a
+
+    === tests the performance of the Nachos file system ===
+    Starting file system performance test:
+    Ticks: total 1070, idle 1000, system 70, user 0
+    Disk I/O: reads 2, writes 0
+    Console I/O: reads 0, writes 0
+    Paging: faults 0
+    Network I/O: packets received 0, sent 0
+    Sequential write of 50000 byte file, in 10 byte chunks
+    Perf test: unable to write TestFile
+    Sequential read of 50000 byte file, in 10 byte chunks
+    Perf test: unable to read TestFile
+    Ticks: total 114520, idle 113790, system 730, user 0
+    Disk I/O: reads 17, writes 7
+    Console I/O: reads 0, writes 0
+    Paging: faults 0
+    Network I/O: packets received 0, sent 0
     ```
 
 ## I. Basic Operation of the File System
@@ -382,4 +444,9 @@ struct tm {
 ### Example
 
 * [nachos Lab5實習報告](https://wenku.baidu.com/view/04382358f6ec4afe04a1b0717fd5360cbb1a8d40.html)
+
+Other
+
+* [Tips for NACHOS Assignment 4](https://cs.uwaterloo.ca/~brecht/courses/4321/assign4.html)
 * [CSDN - 操作系統課設實驗五---Nachos文件系統擴展](https://blog.csdn.net/zekdot/article/details/83627721)
+* [CSDN - nachos實驗——文件系統實現](https://blog.csdn.net/saber_jk/article/details/80922854)
