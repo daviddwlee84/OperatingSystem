@@ -187,13 +187,11 @@ class Machine {
 
 #ifdef USER_PROGRAM
 		// Lab4: Global data structure for memory management
-#if USE_BITMAP || INVERTED_PAGETABLE
+		// Bitmap
 		unsigned int bitmap; // This can record 32 allocation units (sizeof(int)*8 = 32). Current NumPhysPages is 32 too.
+		// Bitmap and Inverted Page Table
 		int allocateFrame(void); // Find a empty allocation unit to put physical page frames
 		void freeMem(void); // Free current page table physical page frames
-#elif USE_LINKED_LIST
-		// TODO
-#endif
 #endif // USER_PROGRAM
 
   private:
