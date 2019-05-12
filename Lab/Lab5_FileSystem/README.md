@@ -250,6 +250,16 @@ Disk Allocation Structure
  0#: System bitmap file's i-node
 ```
 
+The first sector is define in `code/filesys/filesys.cc`.
+
+```c
+// Sectors containing the file headers for the bitmap of free sectors,
+// and the directory of files.  These file headers are placed in well-known
+// sectors, so that they can be located on boot-up.
+#define FreeMapSector 		0
+#define DirectorySector 	1
+```
+
 #### The Virtual Disk
 
 > This is implemented in `code/machine/disk.h` and `code/machine/disk.cc`
@@ -287,23 +297,69 @@ This bitmap file should be mutual exclusive access.
 >
 > Top-level interface to the file system
 
-Initialization (`FileSystem::FileSystem`)
-
-* When formating the file system
-    1. Generate new bitmap and empty root directory
-    2. Generate bitmap's file header and roo directory's file header
-    3. ... TODO
+Initialization (`FileSystem::FileSystem`). That is [formating](#Format).
+If we are not formatting the disk, just open the files representing the bitmap and directory. These are left open while Nachos is running.
 
 Main operations
 
-* `FileSystem::Create`
-* `FileSystem::Open`
-* `FileSystem::Remove`
+* `FileSystem::Create` (UNIX creat)
+    > Yes, this function’s name is missing an e. Ken Thompson, the creator of Unix, once joked that the missing letter was his largest regret in the design of Unix. (from Linux System Programming)
+* `FileSystem::Open` (UNIX open)
+* `FileSystem::Remove` (UNIX unlink)
+
+Main attributes
+
+* `OpenFile* freeMapFile`: Bit map of free disk blocks, represented as a file
+* `OpenFile* directoryFile`: "Root" directory -- list of file names, represented as a file
 
 > Stub File System
 >
 > If use the `FILESYS_STUB` flag, Nachos will use the UNIX file system calls instead of its own.
 > In the previous lab it use this, but in this lab we will use `FILESYS` instead.
+
+#### Format
+
+Steps when formating the file system
+
+1. Generate new bitmap and empty root directory
+2. Generate bitmap's file header and roo directory's file header
+3. ... TODO
+
+If define `FILESYS_NEEDED`. When calling `(void) Initialize(argc, argv);` in `main()` in `code/threads/main.cc`.
+
+In `code/threads/system.cc`. Here is how disk been format.
+
+```c
+void
+Initialize(int argc, char **argv)
+{
+    ...
+
+#ifdef FILESYS_NEEDED
+    bool format = FALSE;	// format disk
+#endif
+
+    ...
+
+#ifdef FILESYS_NEEDED
+	if (!strcmp(*argv, "-f"))
+	    format = TRUE;
+#endif
+
+#ifdef FILESYS
+    synchDisk = new SynchDisk("DISK");
+#endif
+
+#ifdef FILESYS_NEEDED
+    fileSystem = new FileSystem(format);
+#endif
+
+    ...
+
+}
+```
+
+This is how the file `code/filesys/DISK` came from.
 
 #### File Header
 
@@ -313,6 +369,19 @@ Main operations
 > **This is the NachOS equivalent of a UNIX i-node**.
 
 Because current Nachos only support direct indexing, and once determine the file length it can't be changed.
+
+When need an header here is the procedure:
+
+1. `FileHeader header = new FileHeader;`
+2. `header->FetchFrom(sector);`
+3. do something
+4. (if have modified) `header->WriteBack(sector);`
+5. `del header;`
+
+The header is preserve in `DISK` as a `char` stream. And load it back the same way.
+The total size of a header is a single sector (i.e. `SectorSize` (128 bytes)).
+
+For further explaination of [UNIX i-node](#unix-i-node)
 
 #### Open File (File Access)
 
@@ -337,11 +406,351 @@ Current Nachos only has single-layer directory (i.e. root directory). And the si
 >
 > Try to remove the limit of file name length.
 
-#### Add additional file attributes
+Because we only have one directory now, and keep file name in i-node is not quite proper.
+Thus I'll add the `path` attribute when I need it.
+
+And I'll seperate this exercise into two phases
+
+1. Add additional file attributes
+2. Remove limit of file name length
+
+Previous trace code result of the file header see [here](#file-header)
+
+#### UNIX i-node
+
+UNIX keeps three times for each file:
+
+* last modification ( mtime )
+* last access ( atime )
+* last inode modification ( ctime )
+  * A file's ctime is changed when the file is modified or when something kept in the inode (number of hard links, owner, group, etc.) has been changed.
+
+> * [A File's Inode Change (not "Creation"!) Time](https://docstore.mik.ua/orelly/unix/upt/ch21_06.htm)
+> * [Where are filenames stored on a filesystem?](https://unix.stackexchange.com/questions/117325/where-are-filenames-stored-on-a-filesystem)
+
+#### 1. Add additional file attributes
 
 As we want to add the additional file attribute we need to modify the file hader (i.e. i-node in UNIX term) in `code/filesys/filehdr.h`
 
-#### Remove limit of file name length
+Because the header is loaded from `DISK` only when it is needed. And the size is fixed in a sector so we shouldn't put too many (redundant) information in it.
+
+But sometimes we need more information, but these information can be dynamically assign right when the header is opened. Thus I seperate a header in two part. Data part and In-core part.
+
+The data part is exactly 128 bytes and will be store in the `DISK`.
+Threre is a macro called `NumDirect`. The calculation of it is simply minus the header informations. And see how many space left for the direct disk indexing part. (i.e. the sector numbers where the data are)
+
+The in-core part is stored in memory. And won't be store in `DISK`. But sometime we need additional temporary information to do something.
+
+```txt
+The visual FileHeader attributes
+
++-----------------------------------------+
+|           FileHeader (i-node)           |
++-----------------------------------------+
+|   Disk Part  | numBytes (int)           |
++              +--------------------------+
+|   (total     | numSectors (int)         |
++  128 bytes)  +--------------------------+
+|              | fileType (string)        |
++              +--------------------------+
+|              | createdTime (string)     |
++              +--------------------------+
+|              | modifiedTime (string)    |
++              +--------------------------+
+|              | lastVisitedTime (string) |
++              +--------------------------+
+|              | dataSectors[NumDirect]   | => size = 128 - others;
++--------------+--------------------------+    mapping entries = size/sizeof(int)
+| In-core Part | headerSector             |
++--------------+--------------------------+
+```
+
+In order to get the current time and the file extension, I've made the following utility/helper functions.
+(declare in `code/filesys/filehdr.h` and define in `code/filesys/filehdr.cc`)
+
+```cpp
+//----------------------------------------------------------------------
+// getFileExtension
+//    Extract the file name to get the extension. If the file name don't
+//    have extension then return empty string. 
+//
+//      e.g. test.haha.pdf => "pdf"
+//      e.g. test.txt      => txt
+//      e.g. test.         => ""
+//      e.g. test          => ""
+//----------------------------------------------------------------------
+
+char*
+getFileExtension(char *filename)
+{
+    char *dot = strrchr(filename, '.');
+    if(!dot || dot == filename) return "";
+    return dot + 1;
+}
+
+//----------------------------------------------------------------------
+// getCurrentTime
+//    Return the sting of the time that we called it.
+//
+//    (use asctime to transfer to string)
+//----------------------------------------------------------------------
+
+char*
+getCurrentTime(void)
+{
+    time_t rawtime;
+    time(&rawtime);
+    struct tm* currentTime = localtime(&rawtime);
+    return asctime(currentTime); // This somehow will generate extra '\n'
+}
+```
+
+> I was tried to store the `struct tm` (or its pointer) in Header file. But the content of time will decode as random code (not sure why).
+> So I compromise to store the time as string. (string length is 25 (include `\0` char) `echo "Sat May 11 22:37:41 2019" | wc` => `1       5      25`)
+> Here is some notes about how to use `time.h`.
+>
+> But in `code/machine/sysdep.cc` there is the include of `time.h` but I'm not sure why it won't work as `string.h` (that we don't need to include it to use its function)
+>
+> ```cpp
+> extern "C" {
+> ...
+> #include <sys/time.h>
+> ...
+> #ifdef HOST_i386
+> ...
+> #include <sys/time.h>
+> ...
+> #endif
+> #ifdef HOST_SPARC
+> ...
+> #include <sys/time.h>
+> #endif
+>
+> ...
+> ```
+
+#### 1-1. header structure
+
+The calculation of the number of direct sector mapping (`NumDirect`) is
+
+```cpp
+// Disk part
+#define NumOfIntHeaderInfo 2
+#define NumOfTimeHeaderInfo 3
+#define LengthOfTimeHeaderStr 26 // 25 + 1 ('/0')
+#define MaxExtLength 5           // 4  + 1 ('/0')
+#define LengthOfAllString MaxExtLength + NumOfTimeHeaderInfo*LengthOfTimeHeaderStr
+
+#define NumDirect 	((SectorSize - (NumOfIntHeaderInfo*sizeof(int) + LengthOfAllString*sizeof(char))) / sizeof(int))
+```
+
+There will be "9" left for the mapping part in current FileHeader structure. (original will be "30").
+
+Here is the structure of my FileHeader currently. (in `code/filesys/filehdr.h`)
+
+```cpp
+class FileHeader {
+  private:
+    // ======================== Disk Part ======================== //
+    // == Header Information == //
+    int numBytes;   // Number of bytes in the file
+    int numSectors; // Number of data sectors in the file
+
+    // Lab5: additional file attributes
+    char fileType[MaxExtLength];
+    char createdTime[LengthOfTimeHeaderStr];
+    char modifiedTime[LengthOfTimeHeaderStr];
+    char lastVisitedTime[LengthOfTimeHeaderStr];
+
+    // == Data Sectors == //
+    int dataSectors[NumDirect]; // Disk sector numbers for each data
+                                // block in the file
+    // ======================== In-core Part ======================== //
+    // This will be assign value when the file is open!
+    int headerSector; // Because when we OpenFile, we need to update the header information
+                      // but the sector message is only exist when create the OpenFile object
+                      // some how we need to know which sector to write back
+}
+```
+
+And I've also define some public function to manipulate them.
+
+```cpp
+class FileHeader {
+  public:
+
+    ...
+
+    // Lab5: additional file attributes
+    void HeaderCreateInit(char* ext); // Initialize all header message for creation
+    // Disk part
+    void setFileType(char* ext) { strcmp(ext, "") ? strcpy(fileType, ext) : strcpy(fileType, "None"); }
+    void setCreateTime(char* t) { strcpy(createdTime, t); }
+    void setModifyTime(char* t) { strcpy(modifiedTime, t); }
+    void setVisitTime(char* t) { strcpy(lastVisitedTime, t); }
+    // In-core part
+    void setHeaderSector(int sector) { headerSector = sector; }
+    int getHeaderSector() { return headerSector; }
+}
+```
+
+The `FileHeader::HeaderCreateInit` is used when we first create the FileHeader.
+
+```cpp
+//----------------------------------------------------------------------
+// FileHeader::HeaderCreateInit
+//  Set the file type, time informations and other attribute.
+//  Invoke this when create a FileHeader first time.
+//  (not every "new FileHeader")
+//----------------------------------------------------------------------
+
+void
+FileHeader::HeaderCreateInit(char* ext)
+{
+    setFileType(ext);
+
+    char* currentTimeString = getCurrentTime();
+    setCreateTime(currentTimeString);
+    setModifyTime(currentTimeString);
+    setVisitTime(currentTimeString);
+}
+```
+
+#### 1.2 init and update the FileHeader
+
+Last part of the last paragraph shows the init function.
+
+This will be used for bitmap and directory file header (in `FileSystem::FileSystem` when formating).
+Or for normal file header (in `FileSystem::Create` when create a file in Nachos disk).
+Both are in file `code/filesys/filesys.cc` like this.
+
+```c
+FileSystem::FileSystem(bool format)
+{
+    if (format) {
+
+        ...
+
+        FileHeader *mapHdr = new FileHeader;
+        mapHdr->HeaderCreateInit("BMap");
+
+        FileHeader *dirHdr = new FileHeader;
+        dirHdr->HeaderCreateInit("DirH");
+
+        ...
+    }
+}
+
+bool
+FileSystem::Create(char *name, int initialSize)
+{
+    FileHeader *hdr;
+    if (directory->Find(name) != -1)
+        ...
+    else
+    {
+        ...
+
+        if (sector == -1)
+            ...
+        else if (!directory->Add(name, sector))
+            ...
+        else
+        {
+            hdr = new FileHeader;
+            if (!hdr->Allocate(freeMap, initialSize))
+                ...
+            else
+            {
+                success = TRUE;
+                hdr->HeaderCreateInit(getFileExtension(name)); // Lab5: additional file attributes
+
+                ...
+            }
+            delete hdr;
+```
+
+Why we need the in-core part attriubte `headerSector` is because we need to update FileHeader when we open it.
+
+At the start and end of the open file. (in `code/filesys/openfile.cc`)
+
+```cpp
+OpenFile::OpenFile(int sector)
+{
+    hdr = new FileHeader;
+    hdr->FetchFrom(sector);
+    hdr->setHeaderSector(sector); // Necessary, because we need to update
+                                  // FileHeader(i-node) later on.
+}
+
+OpenFile::~OpenFile()
+{
+    hdr->WriteBack(hdr->getHeaderSector()); // Update the header info
+    delete hdr;
+}
+```
+
+And update the time attributes while read and write. (because the function `OpenFile::Read` and `OpenFile::Write` will call `OpenFile::ReadAt` and `OpenFile::WriteAt`, so just implement in two of them)
+
+```cpp
+int
+OpenFile::ReadAt(char *into, int numBytes, int position)
+{
+    ...
+
+    // Lab5: file header info update
+    hdr->setVisitTime(getCurrentTime());
+}
+
+int
+OpenFile::WriteAt(char *from, int numBytes, int position)
+{
+    ...
+
+    // Lab5: file header info update
+    hdr->setVisitTime(getCurrentTime());
+    hdr->setModifyTime(getCurrentTime());
+}
+```
+
+**Test the result**:
+
+Because the script is running too fast, so I've add `sleep 1` in the test script `code/filesys/test/test_exercise_1-1.sh` before the line `./nachos -Q -p small`.
+And also add `.txt` extension to the file `small`.
+
+```sh
+#!/bin/sh
+# goto filesys/ in docker
+cd /nachos/nachos-3.4/code/filesys
+
+echo "=== copies file \"small\" from UNIX to Nachos (and add extension) ==="
+./nachos -Q -cp test/small small.txt
+sleep 1 # to observe the modification time change
+echo "=== print the content of file \"small\" ==="
+./nachos -Q -p small.txt
+echo "=== prints the contents of the entire file system ==="
+./nachos -Q -D
+```
+
+And this is the result of the `small` file header content.
+
+```txt
+Name: small, Sector: 11
+------------ FileHeader contents -------------
+        File type: txt
+        Created: Sun May 12 03:06:50 2019
+        Modified: Sun May 12 03:06:50 2019
+        Last visited: Sun May 12 03:06:51 2019
+File size: 38.  File blocks:
+12
+File contents:
+This is the spring of our discontent.\a
+----------------------------------------------
+```
+
+As you can see, the "Last visited" time is later than "Modified" time one second.
+
+#### 2. Remove limit of file name length
 
 ```c
 #define MaxFileSize (NumDirect * SectorSize)
@@ -425,6 +834,14 @@ struct tm {
 };
 ```
 
+#### Comvert string back to time_t
+
+* [Stackoverflow - How to convert a string variable containing time to time_t type in c++?](https://stackoverflow.com/questions/11213326/how-to-convert-a-string-variable-containing-time-to-time-t-type-in-c)
+
+### Store class object using char string
+
+### The time in docker container is not equal to system time
+
 ## TODO
 
 * [ ] Fill up more detail in Exercise 1
@@ -440,6 +857,7 @@ struct tm {
     * Directories
     * Putting It All Together
 * [Stackoverflow - Getting file extension in C](https://stackoverflow.com/questions/5309471/getting-file-extension-in-c)
+* [**Slides - Nachos File System**](https://acm.sjtu.edu.cn/w/images/1/14/Nachos-p5-xjia.pdf) (this is Java version but with some important concept)
 
 ### Example
 
