@@ -750,10 +750,140 @@ This is the spring of our discontent.\a
 
 As you can see, the "Last visited" time is later than "Modified" time one second.
 
+#### Common file system maximum filename length
+
+| System                           | Maximum length (characters) |
+| -------------------------------- | --------------------------- |
+| 8-bit FAT                        | 9                           |
+| FAT12, FAT16, FAT32              | 11                          |
+| POSIX "Fully portable filenames" | 14                          |
+| exFAT                            | 255                         |
+| NTFS                             | 255                         |
+| Mac OS HFS                       | 255                         |
+| most UNIX file systems           | 255                         |
+
 #### 2. Remove limit of file name length
 
-```c
-#define MaxFileSize (NumDirect * SectorSize)
+There are file name related definition in `code/filesys/directory.h`
+
+```cpp
+#define FileNameMaxLen 		9	// for simplicity, we assume 
+					// file names are <= 9 characters long
+
+class DirectoryEntry {
+  public:
+
+    ...
+
+    char name[FileNameMaxLen + 1];	// Text name for file, with +1 for 
+					// the trailing '\0'
+};
+```
+
+So I change the macro `FileNameMaxLen` to use the rest of the space of the disk sector.
+
+> But we can't do what just like [how `NumDirect` did](#1-1.-header-structure). (this may append the max length to 123 characters.)
+>
+> ```cpp
+> // Lab5: Remove the limitation of the previous file name length (this won't work)
+> #define FileNameMaxLen ((SectorSize - sizeof(bool) - sizeof(int)) / sizeof(char)) - 1
+> ```
+>
+> Because the FetchFrom and WriteBack function of Directory compare to FileHeader is different.
+>
+> ```cpp
+> void
+> FileHeader::FetchFrom(int sector)
+> {
+>     synchDisk->ReadSector(sector, (char *)this);
+> }
+>
+> void
+> FileHeader::WriteBack(int sector)
+> {
+>     synchDisk->WriteSector(sector, (char *)this);
+> }
+> ```
+>
+> ```cpp
+> void
+> Directory::FetchFrom(OpenFile *file)
+> {
+>     (void) file->ReadAt((char *)table, tableSize * sizeof(DirectoryEntry), 0);
+> }
+>
+> void
+> Directory::WriteBack(OpenFile *file)
+> {
+>     (void) file->WriteAt((char *)table, tableSize * sizeof(DirectoryEntry), 0);
+> }
+> ```
+
+The `FileHeader` is store in a entire sector, but the `DirectoryEntry` is just a part of the `Directory` table (in `class Directory`). Thus the `DirectoryEntry` size will influence the maximum number of the `tableSize`.
+
+There are the original Nachos maximum size of the Directory File that define in `code/filesys/filesys.cc`
+
+```cpp
+#define NumDirEntries 		10
+#define DirectoryFileSize 	(sizeof(DirectoryEntry) * NumDirEntries)
+```
+
+Each time when we create a new directory it will input `NumDirEntries` into the `Directory` constructor.
+
+So the maximum size of the filename should be define like this (the value is 77 characters)
+
+```cpp
+// Lab5: Remove the limitation of the previous file name length
+#define NumDirEntries 10 // originally defined in fileysys/filesys.cc
+#define FileNameMaxLen (((SectorSize - (sizeof(bool) + sizeof(int)) * NumDirEntries) / sizeof(char)) - 1)
+```
+
+And this is the test result
+
+```txt
+$ docker run -it nachos_filesys nachos/nachos-3.4/code/filesys/nachos -Q -f -cp nachos/nachos-3.4/code/filesys/test/small I_am_a_super_long_long_long_long_long_long_long_long_long_long_filename.txt -D
+Bit map file header:
+------------ FileHeader contents -------------
+        File type: BMap
+        Created: Sun May 12 14:05:45 2019
+        Modified: Sun May 12 14:05:45 2019
+        Last visited: Sun May 12 14:05:45 2019
+File size: 128.  File blocks:
+2 
+File contents:
+\ff\f\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+----------------------------------------------
+Directory file header:
+------------ FileHeader contents -------------
+        File type: DirH
+        Created: Sun May 12 14:05:45 2019
+        Modified: Sun May 12 14:05:45 2019
+        Last visited: Sun May 12 14:05:45 2019
+File size: 880.  File blocks:
+3 4 5 6 7 8 9
+File contents:
+\1\0\0\0\a\0\0\0I_am_a_super_long_long_long_long_long_long_long_long_long_long_filename.txt\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+----------------------------------------------
+Bitmap set:
+0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+Directory contents:
+Name: I_am_a_super_long_long_long_long_long_long_long_long_long_long_filename.txt, Sector: 10
+------------ FileHeader contents -------------
+        File type: txt
+        Created: Sun May 12 14:05:45 2019
+        Modified: Sun May 12 14:05:45 2019
+        Last visited: Sun May 12 14:05:45 2019
+File size: 38.  File blocks:
+11
+File contents:
+This is the spring of our discontent.\a
+----------------------------------------------
 ```
 
 ### Exercise 3: Expand file length (size)

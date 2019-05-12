@@ -19,8 +19,11 @@
 
 #include "openfile.h"
 
-#define FileNameMaxLen 		9	// for simplicity, we assume 
-					// file names are <= 9 characters long
+// Lab5: Remove the limitation of the previous file name length
+#define NumDirEntries 10 // originally defined in fileysys/filesys.cc
+#define FileNameMaxLen (((SectorSize - (sizeof(bool) + sizeof(int)) * NumDirEntries) / sizeof(char)) - 1)
+// #define FileNameMaxLen 		9	// for simplicity, we assume 
+					// file names are <= 9 characters long (original version)
 
 // The following class defines a "directory entry", representing a file
 // in the directory.  Each entry gives the name of the file, and where
