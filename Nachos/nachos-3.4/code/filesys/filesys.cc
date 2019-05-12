@@ -78,13 +78,16 @@
 //----------------------------------------------------------------------
 
 FileSystem::FileSystem(bool format)
-{ 
+{
     DEBUG('f', "Initializing the file system.\n");
     if (format) {
         BitMap *freeMap = new BitMap(NumSectors);
         Directory *directory = new Directory(NumDirEntries);
-	FileHeader *mapHdr = new FileHeader;
-	FileHeader *dirHdr = new FileHeader;
+        FileHeader *mapHdr = new FileHeader;
+        mapHdr->HeaderCreateInit("BMap");
+
+        FileHeader *dirHdr = new FileHeader;
+        dirHdr->HeaderCreateInit("DirH");
 
         DEBUG('f', "Formatting the file system.\n");
 
@@ -186,28 +189,32 @@ FileSystem::Create(char *name, int initialSize)
     directory->FetchFrom(directoryFile);
 
     if (directory->Find(name) != -1)
-      success = FALSE;			// file is already in directory
-    else {	
+        success = FALSE; // file is already in directory
+    else
+    {
         freeMap = new BitMap(NumSectors);
         freeMap->FetchFrom(freeMapFile);
-        sector = freeMap->Find();	// find a sector to hold the file header
-    	if (sector == -1) 		
-            success = FALSE;		// no free block for file header 
+        sector = freeMap->Find(); // find a sector to hold the file header
+        if (sector == -1)
+            success = FALSE; // no free block for file header
         else if (!directory->Add(name, sector))
-            success = FALSE;	// no space in directory
-	else {
-    	    hdr = new FileHeader;
-	    if (!hdr->Allocate(freeMap, initialSize))
-            	success = FALSE;	// no space on disk for data
-	    else {	
-	    	success = TRUE;
-		// everthing worked, flush all changes back to disk
-    	    	hdr->WriteBack(sector); 		
-    	    	directory->WriteBack(directoryFile);
-    	    	freeMap->WriteBack(freeMapFile);
-	    }
+            success = FALSE; // no space in directory
+        else
+        {
+            hdr = new FileHeader;
+            if (!hdr->Allocate(freeMap, initialSize))
+                success = FALSE; // no space on disk for data
+            else
+            {
+                success = TRUE;
+                hdr->HeaderCreateInit(getFileExtension(name)); // Lab5: additional file attributes
+                // everthing worked, flush all changes back to disk
+                hdr->WriteBack(sector);
+                directory->WriteBack(directoryFile);
+                freeMap->WriteBack(freeMapFile);
+            }
             delete hdr;
-	}
+        }
         delete freeMap;
     }
     delete directory;
@@ -339,37 +346,3 @@ FileSystem::Print()
     delete freeMap;
     delete directory;
 } 
-
-//----------------------------------------------------------------------
-// getFileExtension
-//    Extract the file name to get the extension. If the file name don't
-//    have extension then return empty string. 
-//
-//      e.g. test.haha.pdf => "pdf"
-//      e.g. test.txt      => txt
-//      e.g. test.         => ""
-//      e.g. test          => ""
-//----------------------------------------------------------------------
-
-const char*
-getFileExtension(const char *filename)
-{
-    const char *dot = strrchr(filename, '.');
-    if(!dot || dot == filename) return "";
-    return dot + 1;
-}
-
-//----------------------------------------------------------------------
-// getCurrentTime
-//    Return the time (struct tm*) that we called it.
-//
-//    (use asctime to transfer to string)
-//----------------------------------------------------------------------
-
-struct tm*
-getCurrentTime(void)
-{
-    time_t rawtime;
-    time(&rawtime);
-    return localtime(&rawtime);
-}

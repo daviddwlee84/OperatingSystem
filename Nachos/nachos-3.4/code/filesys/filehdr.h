@@ -16,8 +16,21 @@
 
 #include "disk.h"
 #include "bitmap.h"
+#include <time.h> // Lab5: for created time, modified time, last visited time
 
-#define NumDirect 	((SectorSize - 2 * sizeof(int)) / sizeof(int))
+// Disk part
+#define NumOfIntHeaderInfo 2
+#define NumOfTimeHeaderInfo 3
+#define LengthOfTimeHeaderStr 26 // 25 + 1 ('/0')
+#define MaxExtLength 5           // 4  + 1 ('/0')
+#define LengthOfAllString MaxExtLength + NumOfTimeHeaderInfo*LengthOfTimeHeaderStr
+// In-core part
+// #define MaxPathLength 30 // uncomment when we need it
+
+// FileHeader Object Data (for more detail see how this object been store in FileHeader::WriteBack)
+// Header Data | dataSectors
+// NumDirect is the sector starting point of the "data", that is we need to keep the space for the header informations
+#define NumDirect 	((SectorSize - (NumOfIntHeaderInfo*sizeof(int) + LengthOfAllString*sizeof(char))) / sizeof(int))
 #define MaxFileSize 	(NumDirect * SectorSize)
 
 // The following class defines the Nachos "file header" (in UNIX terms,  
@@ -56,11 +69,56 @@ class FileHeader {
 
     void Print();			// Print the contents of the file.
 
+    // Lab5: additional file attributes
+    void HeaderCreateInit(char* ext); // Initialize all header message for creation
+    // Disk part
+    void setFileType(char* ext) { strcmp(ext, "") ? strcpy(fileType, ext) : strcpy(fileType, "None"); }
+    void setCreateTime(char* t) { strcpy(createdTime, t); }
+    void setModifyTime(char* t) { strcpy(modifiedTime, t); }
+    void setVisitTime(char* t) { strcpy(lastVisitedTime, t); }
+    // In-core part
+    void setHeaderSector(int sector) { headerSector = sector; }
+    int getHeaderSector() { return headerSector; }
+    // void setFilePath(char* path) { strcpy(filePath, path); } // uncomment when we need it
+
   private:
-    int numBytes;			// Number of bytes in the file
-    int numSectors;			// Number of data sectors in the file
-    int dataSectors[NumDirect];		// Disk sector numbers for each data 
-					// block in the file
+	/*
+		Hint from the web:
+		You will need a data structure to store more information in a header.
+		Fields in a class can be separated into disk part and in-core part.
+		Disk part are data that will be written into disk.
+		In-core part are data only lies in memory, and are used to maintain the data structure of this class.
+		In order to implement a data structure, you will need to add some "in-core" data
+		to maintain data structure.
+		
+		Disk Part - numBytes, numSectors, dataSectors occupy exactly 128 bytes and will be
+		written to a sector on disk.
+		In-core part - none
+		
+	*/
+    // ======================== Disk Part ======================== //
+    // == Header Information == //
+    int numBytes;   // Number of bytes in the file
+    int numSectors; // Number of data sectors in the file
+
+    // Lab5: additional file attributes
+    char fileType[MaxExtLength];
+    char createdTime[LengthOfTimeHeaderStr];
+    char modifiedTime[LengthOfTimeHeaderStr];
+    char lastVisitedTime[LengthOfTimeHeaderStr];
+
+    // == Data Sectors == //
+    int dataSectors[NumDirect]; // Disk sector numbers for each data
+                                // block in the file
+    // ======================== In-core Part ======================== //
+    // This will be assign value when the file is open!
+    int headerSector; // Because when we OpenFile, we need to update the header information
+                      // but the sector message is only exist when create the OpenFile object
+                      // some how we need to know which sector to write back
+    // char filePath[MaxPathLength]; // uncomment when we need it
 };
+
+extern char* getFileExtension(char *filename);
+extern char* getCurrentTime(void);
 
 #endif // FILEHDR_H

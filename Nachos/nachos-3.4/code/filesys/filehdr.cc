@@ -132,19 +132,84 @@ FileHeader::Print()
     int i, j, k;
     char *data = new char[SectorSize];
 
-    printf("FileHeader contents.  File size: %d.  File blocks:\n", numBytes);
+    // Lab5: additional file attributes
+    printf("------------ %s -------------\n", COLORED(GREEN, "FileHeader contents"));
+    printf("\tFile type: %s\n", fileType);
+    printf("\tCreated: %s", createdTime);
+    printf("\tModified: %s", modifiedTime);
+    printf("\tLast visited: %s", lastVisitedTime);
+    // printf("\tPath: %s\n", filePath); // uncomment when we need it
+    printf("File size: %d.  File blocks:\n", numBytes);
     for (i = 0; i < numSectors; i++)
-	printf("%d ", dataSectors[i]);
+        printf("%d ", dataSectors[i]);
     printf("\nFile contents:\n");
-    for (i = k = 0; i < numSectors; i++) {
-	synchDisk->ReadSector(dataSectors[i], data);
-        for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++) {
-	    if ('\040' <= data[j] && data[j] <= '\176')   // isprint(data[j])
-		printf("%c", data[j]);
+    for (i = k = 0; i < numSectors; i++)
+    {
+        synchDisk->ReadSector(dataSectors[i], data);
+        for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++)
+        {
+            if ('\040' <= data[j] && data[j] <= '\176') // isprint(data[j])
+                printf("%c", data[j]);
             else
-		printf("\\%x", (unsigned char)data[j]);
-	}
-        printf("\n"); 
+                printf("\\%x", (unsigned char)data[j]);
+        }
+        printf("\n");
     }
-    delete [] data;
+    printf("----------------------------------------------\n");
+    delete[] data;
+}
+
+//----------------------------------------------------------------------
+// FileHeader::HeaderCreateInit
+// 	Set the file type, time informations and other attribute.
+//  Invoke this when create a FileHeader first time.
+//  (not every "new FileHeader")
+//----------------------------------------------------------------------
+
+void
+FileHeader::HeaderCreateInit(char* ext)
+{
+    setFileType(ext);
+
+    char* currentTimeString = getCurrentTime();
+    setCreateTime(currentTimeString);
+    setModifyTime(currentTimeString);
+    setVisitTime(currentTimeString);
+}
+
+// Lab5: Helper Functions
+
+//----------------------------------------------------------------------
+// getFileExtension
+//    Extract the file name to get the extension. If the file name don't
+//    have extension then return empty string. 
+//
+//      e.g. test.haha.pdf => "pdf"
+//      e.g. test.txt      => txt
+//      e.g. test.         => ""
+//      e.g. test          => ""
+//----------------------------------------------------------------------
+
+char*
+getFileExtension(char *filename)
+{
+    char *dot = strrchr(filename, '.');
+    if(!dot || dot == filename) return "";
+    return dot + 1;
+}
+
+//----------------------------------------------------------------------
+// getCurrentTime
+//    Return the sting of the time that we called it.
+//
+//    (use asctime to transfer to string)
+//----------------------------------------------------------------------
+
+char*
+getCurrentTime(void)
+{
+    time_t rawtime;
+    time(&rawtime);
+    struct tm* currentTime = localtime(&rawtime);
+    return asctime(currentTime); // This somehow will generate extra '\n'
 }
