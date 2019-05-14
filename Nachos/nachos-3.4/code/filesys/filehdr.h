@@ -30,8 +30,18 @@
 // FileHeader Object Data (for more detail see how this object been store in FileHeader::WriteBack)
 // Header Data | dataSectors
 // NumDirect is the sector starting point of the "data", that is we need to keep the space for the header informations
+#ifndef INDIRECT_MAP
 #define NumDirect 	((SectorSize - (NumOfIntHeaderInfo*sizeof(int) + LengthOfAllString*sizeof(char))) / sizeof(int))
 #define MaxFileSize 	(NumDirect * SectorSize)
+#else
+#define NumDataSectors ((SectorSize - (NumOfIntHeaderInfo*sizeof(int) + LengthOfAllString*sizeof(char))) / sizeof(int))
+#define NumDirect (NumDataSectors - 2)
+#define IndirectSectorIdx (NumDataSectors - 2)
+#define DoubleIndirectSectorIdx (NumDataSectors - 1)
+#define MaxFileSize (NumDirect * SectorSize) + \
+                    ((SectorSize / sizeof(int)) * SectorSize) + \
+                    ((SectorSize / sizeof(int)) * ((SectorSize / sizeof(int)) * SectorSize))
+#endif
 
 // The following class defines the Nachos "file header" (in UNIX terms,  
 // the "i-node"), describing where on disk to find all of the data in the file.
@@ -108,8 +118,14 @@ class FileHeader {
     char lastVisitedTime[LengthOfTimeHeaderStr];
 
     // == Data Sectors == //
+#ifndef INDIRECT_MAP
     int dataSectors[NumDirect]; // Disk sector numbers for each data
                                 // block in the file
+#else
+    int dataSectors[NumDataSectors]; // Disk sector numbers for each data
+                                     // block in the file
+                                     // the last two of them are indirect block
+#endif
     // ======================== In-core Part ======================== //
     // This will be assign value when the file is open!
     int headerSector; // Because when we OpenFile, we need to update the header information
@@ -118,6 +134,7 @@ class FileHeader {
     // char filePath[MaxPathLength]; // uncomment when we need it
 };
 
+char* printChar(char oriChar);
 extern char* getFileExtension(char *filename);
 extern char* getCurrentTime(void);
 

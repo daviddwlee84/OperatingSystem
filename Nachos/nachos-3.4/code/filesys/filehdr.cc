@@ -27,6 +27,8 @@
 #include "system.h"
 #include "filehdr.h"
 
+#define LevelMapNum (SectorSize / sizeof(int)) // 32 when SectorSize is 128 bytes
+
 //----------------------------------------------------------------------
 // FileHeader::Allocate
 // 	Initialize a fresh file header for a newly created file.
@@ -40,14 +42,62 @@
 
 bool
 FileHeader::Allocate(BitMap *freeMap, int fileSize)
-{ 
+{
     numBytes = fileSize;
-    numSectors  = divRoundUp(fileSize, SectorSize);
+    numSectors = divRoundUp(fileSize, SectorSize);
     if (freeMap->NumClear() < numSectors)
-	return FALSE;		// not enough space
+        return FALSE; // not enough space
 
-    for (int i = 0; i < numSectors; i++)
-	dataSectors[i] = freeMap->Find();
+    if (numSectors < NumDirect) {
+        DEBUG('f', COLORED(OKGREEN, "Allocating using direct indexing only\n"));
+        for (int i = 0; i < numSectors; i++)
+            dataSectors[i] = freeMap->Find();
+    } else {
+#ifndef INDIRECT_MAP
+        ASSERT_MSG(FALSE, "File exceeded the maximum representation of the direct map");
+#else
+        if (numSectors < (NumDirect + LevelMapNum)) {
+            DEBUG('f', COLORED(OKGREEN, "Allocating using single indirect indexing\n"));
+            // direct
+            for (int i = 0; i < NumDirect; i++)
+                dataSectors[i] = freeMap->Find();
+            // indirect
+            dataSectors[IndirectSectorIdx] = freeMap->Find();
+            int indirectIndex[LevelMapNum];
+            for (int i = 0; i < numSectors - NumDirect; i++) {
+                indirectIndex[i] = freeMap->Find();
+            }
+            synchDisk->WriteSector(dataSectors[IndirectSectorIdx], (char*)indirectIndex);
+        } else if (numSectors < (NumDirect + LevelMapNum + LevelMapNum*LevelMapNum)) {
+            DEBUG('f', COLORED(OKGREEN, "Allocating using double indirect indexing\n"));
+            // direct
+            for (int i = 0; i < NumDirect; i++)
+                dataSectors[i] = freeMap->Find();
+            dataSectors[IndirectSectorIdx] = freeMap->Find();
+            // first indirect
+            int indirectIndex[LevelMapNum];
+            for (int i = 0; i < LevelMapNum; i++) {
+                indirectIndex[i] = freeMap->Find();
+            }
+            synchDisk->WriteSector(dataSectors[IndirectSectorIdx], (char*)indirectIndex);
+            // second indirect
+            dataSectors[DoubleIndirectSectorIdx] = freeMap->Find();
+            const int sectorsLeft = numSectors - NumDirect - LevelMapNum;
+            const int secondIndirectNum = divRoundUp(sectorsLeft, LevelMapNum);
+            for (int j = 0; j < secondIndirectNum; j++) {
+                int doubleIndirectIndex[LevelMapNum];
+                doubleIndirectIndex[j] = freeMap->Find();
+                int singleIndirectIndex[LevelMapNum];
+                for (int i = 0; i < LevelMapNum, i + j * LevelMapNum < numSectors; i++) {
+                    singleIndirectIndex[i] = freeMap->Find();
+                }
+                synchDisk->WriteSector(doubleIndirectIndex[j], (char*)singleIndirectIndex);
+            }
+        } else {
+            ASSERT_MSG(FALSE, "File exceeded the maximum representation of the direct map");
+        }
+#endif
+    }
     return TRUE;
 }
 
@@ -61,10 +111,35 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
 void 
 FileHeader::Deallocate(BitMap *freeMap)
 {
+#ifndef INDIRECT_MAP
     for (int i = 0; i < numSectors; i++) {
-	ASSERT(freeMap->Test((int) dataSectors[i]));  // ought to be marked!
-	freeMap->Clear((int) dataSectors[i]);
+        ASSERT(freeMap->Test((int)dataSectors[i])); // ought to be marked!
+        freeMap->Clear((int)dataSectors[i]);
     }
+#else
+    int i, ii, iii; // For direct / single indirect / double indirect indexing
+    DEBUG('f', COLORED(OKGREEN, "Deallocating direct indexing table\n"));
+    for (i = 0; (i < numSectors) && (i < NumDirect); i++) {
+        ASSERT(freeMap->Test((int)dataSectors[i])); // ought to be marked!
+        freeMap->Clear((int)dataSectors[i]);
+    }
+    if (numSectors > NumDirect) {
+        DEBUG('f', COLORED(OKGREEN, "Deallocating single indirect indexing table\n"));
+        int singleIndirectIndex[LevelMapNum]; // used to restore the indexing map
+        synchDisk->ReadSector(dataSectors[IndirectSectorIdx], (char*)singleIndirectIndex);
+        for (i = NumDirect, ii = 0; (i < numSectors) && (ii < LevelMapNum); i++, ii++) {
+            ASSERT(freeMap->Test((int)singleIndirectIndex[ii])); // ought to be marked!
+            freeMap->Clear((int)singleIndirectIndex[ii]);
+        }
+        // Free the sector of the single indirect indexing table
+        ASSERT(freeMap->Test((int)dataSectors[IndirectSectorIdx]));
+        freeMap->Clear((int)dataSectors[IndirectSectorIdx]);
+        if (numSectors > NumDirect + LevelMapNum) {
+            DEBUG('f', COLORED(OKGREEN, "Deallocating double indirect indexing table\n"));
+            // TODO: Double Indirect Indexing
+        }
+    }
+#endif
 }
 
 //----------------------------------------------------------------------
@@ -106,7 +181,24 @@ FileHeader::WriteBack(int sector)
 int
 FileHeader::ByteToSector(int offset)
 {
-    return(dataSectors[offset / SectorSize]);
+#ifndef INDIRECT_MAP
+    return (dataSectors[offset / SectorSize]);
+#else
+    const int directMapSize = NumDirect * SectorSize;
+    const int singleIndirectMapSize = directMapSize + LevelMapNum * SectorSize;
+    const int doubleIndirectMapSize = singleIndirectMapSize +  LevelMapNum * LevelMapNum * SectorSize;
+
+    if (offset < directMapSize) {
+        return (dataSectors[offset / SectorSize]);
+    } else if (offset < singleIndirectMapSize) {
+        const int sectorNum = (offset - directMapSize) / SectorSize;
+        int singleIndirectIndex[LevelMapNum]; // used to restore the indexing map
+        synchDisk->ReadSector(dataSectors[IndirectSectorIdx], (char*)singleIndirectIndex);
+        return singleIndirectIndex[sectorNum];
+    } else {
+        // TODO: Double Indirect Indexing
+    }
+#endif
 }
 
 //----------------------------------------------------------------------
@@ -129,17 +221,18 @@ FileHeader::FileLength()
 void
 FileHeader::Print()
 {
-    int i, j, k;
+    int i, j, k; // current sector / byte position in a sector / current byte position in file
     char *data = new char[SectorSize];
 
     // Lab5: additional file attributes
     printf("------------ %s -------------\n", COLORED(GREEN, "FileHeader contents"));
-    printf("\tFile type: %s\n", fileType);
-    printf("\tCreated: %s", createdTime);
-    printf("\tModified: %s", modifiedTime);
-    printf("\tLast visited: %s", lastVisitedTime);
+    printf("File type: %s\n", fileType);
+    printf("Created: %s", createdTime);
+    printf("Modified: %s", modifiedTime);
+    printf("Last visited: %s", lastVisitedTime);
     // printf("\tPath: %s\n", filePath); // uncomment when we need it
     printf("File size: %d.  File blocks:\n", numBytes);
+#ifndef INDIRECT_MAP
     for (i = 0; i < numSectors; i++)
         printf("%d ", dataSectors[i]);
     printf("\nFile contents:\n");
@@ -147,14 +240,46 @@ FileHeader::Print()
     {
         synchDisk->ReadSector(dataSectors[i], data);
         for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++)
-        {
-            if ('\040' <= data[j] && data[j] <= '\176') // isprint(data[j])
-                printf("%c", data[j]);
-            else
-                printf("\\%x", (unsigned char)data[j]);
+            printChar(data[j]);
+        printf("\n"); // Reach the end of sector or the end of file
+    }
+#else
+    int ii, iii; // For single / double indirect indexing
+    int singleIndirectIndex[LevelMapNum]; // used to restore the indexing map
+    printf("  Direct indexing:\n    ");
+    for (i = 0; (i < numSectors) && (i < NumDirect); i++)
+        printf("%d ", dataSectors[i]);
+    if (numSectors > NumDirect) {
+        printf("\n  Indirect indexing: (mapping table sector: %d)\n    ", dataSectors[IndirectSectorIdx]);
+        synchDisk->ReadSector(dataSectors[IndirectSectorIdx], (char*)singleIndirectIndex);
+        for (i = NumDirect, ii = 0; (i < numSectors) && (ii < LevelMapNum); i++, ii++)
+            printf("%d ", singleIndirectIndex[ii]);
+        if (numSectors > NumDirect + LevelMapNum) {
+            printf("\n  Double indirect indexing:\n\t");
+            // TODO: Double Indirect Indexing
         }
+    }
+    printf("\nFile contents:\n");
+    for (i = k = 0; (i < numSectors) && (i < NumDirect); i++)
+    {
+        synchDisk->ReadSector(dataSectors[i], data);
+        for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++)
+            printChar(data[j]);
         printf("\n");
     }
+    if (numSectors > NumDirect) {
+        synchDisk->ReadSector(dataSectors[IndirectSectorIdx], (char*)singleIndirectIndex);
+        for (i = NumDirect, ii = 0; (i < numSectors) && (ii < LevelMapNum); i++, ii++) {
+            synchDisk->ReadSector(singleIndirectIndex[ii], data);
+            for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++)
+                printChar(data[j]);
+            printf("\n");
+        }
+        if (numSectors > NumDirect + LevelMapNum) {
+            //TODO: Double Indirect Indexing
+        }
+    }
+#endif
     printf("----------------------------------------------\n");
     delete[] data;
 }
@@ -180,12 +305,28 @@ FileHeader::HeaderCreateInit(char* ext)
 // Lab5: Helper Functions
 
 //----------------------------------------------------------------------
+// printChar
+//    Print character as char if it is readable, otherwise its value.
+//
+//    (move the logic from which originally in FileHeader::Print to here)
+//----------------------------------------------------------------------
+
+char*
+printChar(char oriChar)
+{
+    if ('\040' <= oriChar && oriChar <= '\176') // isprint(oriChar)
+        printf("%c", oriChar); // Character content
+    else
+        printf("\\%x", (unsigned char)oriChar); // Unreadable binary content
+}
+
+//----------------------------------------------------------------------
 // getFileExtension
 //    Extract the file name to get the extension. If the file name don't
 //    have extension then return empty string. 
 //
 //      e.g. test.haha.pdf => "pdf"
-//      e.g. test.txt      => txt
+//      e.g. test.txt      => "txt"
 //      e.g. test.         => ""
 //      e.g. test          => ""
 //----------------------------------------------------------------------
