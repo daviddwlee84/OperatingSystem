@@ -439,6 +439,11 @@ But sometimes we need more information, but these information can be dynamically
 The data part is exactly 128 bytes and will be store in the `DISK`.
 Threre is a macro called `NumDirect`. The calculation of it is simply minus the header informations. And see how many space left for the direct disk indexing part. (i.e. the sector numbers where the data are)
 
+> * sector size = 128 bytes
+> * 120 bytes of block map = 30 entries
+> * each entry maps a 128-byte sector
+> * max file size = 3840 bytes
+
 The in-core part is stored in memory. And won't be store in `DISK`. But sometime we need additional temporary information to do something.
 
 ```txt
@@ -715,7 +720,7 @@ OpenFile::WriteAt(char *from, int numBytes, int position)
 
 **Test the result**:
 
-Because the script is running too fast, so I've add `sleep 1` in the test script `code/filesys/test/test_exercise_1-1.sh` before the line `./nachos -Q -p small`.
+Because the script is running too fast, so I've add `sleep 1` in the test script `code/filesys/test/test_exercise_2-1.sh` before the line `./nachos -Q -p small`.
 And also add `.txt` extension to the file `small`.
 
 ```sh
@@ -890,6 +895,460 @@ This is the spring of our discontent.\a
 
 > Modify the direct indexing to indirect indexing. To break through the limit of 4KB file length.
 
+In [previous exercise](#1-1.-header-structure) we've met the macro `NumDirect`. This is a number of how many direct indexing a FileHeader can have.
+
+But just after we've change the amount of `NumDirect` since we need to add additional file header attributes. The direct mapping index has reduced from 30 to 9 (in [previous exercise](#1-1.-header-structure)). That is, max file (data) size (block map) is reduce from 3804 bytes (30 × 128KB) to 1152 bytes (9 × 128KB). So we really need the indirect indexing.
+
+#### File allocation/deallocation and Offset positioning
+
+When creating a file, it will need to assign an `initialSize` (for now). And here is the procedure.
+
+In `code/filesys/filesys.cc` in `FileSystem::Create` we will try to allocate the file with `initizlSize` with `hdr->Allocate(freeMap, initialSize)`
+
+The original `FileHeader::Allocate` in `code/filesys/filehdr.cc` will calcuate the number of sectors that the file need and assign the free space with bitmap.
+
+```cpp
+bool
+FileHeader::Allocate(BitMap *freeMap, int fileSize)
+{
+    numBytes = fileSize;
+    numSectors = divRoundUp(fileSize, SectorSize);
+    if (freeMap->NumClear() < numSectors)
+        return FALSE; // not enough space
+
+    for (int i = 0; i < numSectors; i++)
+        dataSectors[i] = freeMap->Find();
+    return TRUE;
+}
+```
+
+And another very important function is `FileHeader::ByteToSector`.
+When we are locating which sector the offset sit we will need this function.
+
+```cpp
+int
+FileHeader::ByteToSector(int offset)
+{
+    return (dataSectors[offset / SectorSize]);
+}
+```
+
+In the end, we need to deallocate the space when we delete the file. That is `FileHeader::Deallocate`.
+
+```cpp
+void
+FileHeader::Deallocate(BitMap *freeMap)
+{
+    for (int i = 0; i < numSectors; i++) {
+        ASSERT(freeMap->Test((int)dataSectors[i])); // ought to be marked!
+        freeMap->Clear((int)dataSectors[i]);
+    }
+}
+```
+
+#### The double indirect block
+
+I tend to use the second last dataSector block to do the indirect indexing (i.e. as indirect block) and the last dataSector to do the double indirect indexing (i.e. as double indirect block)
+
+Here is the modification of the three function mention in last paragraph.
+
+In `FileHeader::Allocate` we consider the `fileSize` to calculate how many sectors we need.
+And then determine if we need to use direct or how many level of indirect indexing.
+
+```cpp
+bool
+FileHeader::Allocate(BitMap *freeMap, int fileSize)
+{
+    numBytes = fileSize;
+    numSectors = divRoundUp(fileSize, SectorSize);
+    if (freeMap->NumClear() < numSectors)
+        return FALSE; // not enough space
+
+    if (numSectors < NumDirect) {
+        DEBUG('f', COLORED(OKGREEN, "Allocating using direct indexing only\n"));
+        for (int i = 0; i < numSectors; i++)
+            dataSectors[i] = freeMap->Find();
+    } else {
+        if (numSectors < (NumDirect + LevelMapNum)) {
+            DEBUG('f', COLORED(OKGREEN, "Allocating using single indirect indexing\n"));
+            // direct
+            for (int i = 0; i < NumDirect; i++)
+                dataSectors[i] = freeMap->Find();
+            // indirect
+            dataSectors[IndirectSectorIdx] = freeMap->Find();
+            int indirectIndex[LevelMapNum];
+            for (int i = 0; i < numSectors - NumDirect; i++) {
+                indirectIndex[i] = freeMap->Find();
+            }
+            synchDisk->WriteSector(dataSectors[IndirectSectorIdx], (char*)indirectIndex);
+        } else if (numSectors < (NumDirect + LevelMapNum + LevelMapNum*LevelMapNum)) {
+            DEBUG('f', COLORED(OKGREEN, "Allocating using double indirect indexing\n"));
+            // direct
+            for (int i = 0; i < NumDirect; i++)
+                dataSectors[i] = freeMap->Find();
+            dataSectors[IndirectSectorIdx] = freeMap->Find();
+            // first indirect
+            int indirectIndex[LevelMapNum];
+            for (int i = 0; i < LevelMapNum; i++) {
+                indirectIndex[i] = freeMap->Find();
+            }
+            synchDisk->WriteSector(dataSectors[IndirectSectorIdx], (char*)indirectIndex);
+            // second indirect
+            dataSectors[DoubleIndirectSectorIdx] = freeMap->Find();
+            const int sectorsLeft = numSectors - NumDirect - LevelMapNum;
+            const int secondIndirectNum = divRoundUp(sectorsLeft, LevelMapNum);
+            int doubleIndirectIndex[LevelMapNum];
+            for (int j = 0; j < secondIndirectNum; j++) {
+                doubleIndirectIndex[j] = freeMap->Find();
+                int singleIndirectIndex[LevelMapNum];
+                for (int i = 0; (i < LevelMapNum) && (i + j * LevelMapNum < sectorsLeft); i++) {
+                    singleIndirectIndex[i] = freeMap->Find();
+                }
+                synchDisk->WriteSector(doubleIndirectIndex[j], (char*)singleIndirectIndex);
+            }
+            synchDisk->WriteSector(dataSectors[DoubleIndirectSectorIdx], (char*)doubleIndirectIndex);
+        } else {
+            ASSERT_MSG(FALSE, "File exceeded the maximum representation of the direct map");
+        }
+    }
+    return TRUE;
+}
+```
+
+The most important part is the `FileHeader::ByteToSector`. This will be used as the fundamental when we use `synchDisk->ReadSector` and `synchDisk->WriteSector`. (If this fail, it will cause assertion fail in `code/machine/disk.cc`)
+
+```cpp
+int
+FileHeader::ByteToSector(int offset)
+{
+    const int directMapSize = NumDirect * SectorSize;
+    const int singleIndirectMapSize = directMapSize + LevelMapNum * SectorSize;
+    const int doubleIndirectMapSize = singleIndirectMapSize +  LevelMapNum * LevelMapNum * SectorSize;
+
+    if (offset < directMapSize) {
+        return (dataSectors[offset / SectorSize]);
+    } else if (offset < singleIndirectMapSize) {
+        const int sectorNum = (offset - directMapSize) / SectorSize;
+        int singleIndirectIndex[LevelMapNum]; // used to restore the indexing map
+        synchDisk->ReadSector(dataSectors[IndirectSectorIdx], (char*)singleIndirectIndex);
+        return singleIndirectIndex[sectorNum];
+    } else {
+        const int indexSectorNum = (offset - singleIndirectMapSize) / SectorSize / LevelMapNum;
+        const int sectorNum = (offset - singleIndirectMapSize) / SectorSize % LevelMapNum;
+        int doubleIndirectIndex[LevelMapNum]; // used to restore the indexing map
+        synchDisk->ReadSector(dataSectors[DoubleIndirectSectorIdx], (char*)doubleIndirectIndex);
+        int singleIndirectIndex[LevelMapNum]; // used to restore the indexing map
+        synchDisk->ReadSector(doubleIndirectIndex[indexSectorNum], (char*)singleIndirectIndex);
+        return singleIndirectIndex[sectorNum];
+    }
+}
+```
+
+I've decided to test the create (`-cp`) part first, so we also need to modify the debug function `FileHeader::Print`.
+
+```cpp
+void
+FileHeader::Print()
+{
+    int i, j, k; // current sector / byte position in a sector / current byte position in file
+    char *data = new char[SectorSize];
+
+    // Lab5: additional file attributes
+    printf("------------ %s -------------\n", COLORED(GREEN, "FileHeader contents"));
+    printf("File type: %s\n", fileType);
+    printf("Created: %s", createdTime);
+    printf("Modified: %s", modifiedTime);
+    printf("Last visited: %s", lastVisitedTime);
+    printf("File size: %d.  File blocks:\n", numBytes);
+    int ii, iii; // For single / double indirect indexing
+    int singleIndirectIndex[LevelMapNum]; // used to restore the indexing map
+    int doubleIndirectIndex[LevelMapNum]; // used to restore the indexing map
+    printf("  Direct indexing:\n    ");
+    for (i = 0; (i < numSectors) && (i < NumDirect); i++)
+        printf("%d ", dataSectors[i]);
+    if (numSectors > NumDirect) {
+        printf("\n  Indirect indexing: (mapping table sector: %d)\n    ", dataSectors[IndirectSectorIdx]);
+        synchDisk->ReadSector(dataSectors[IndirectSectorIdx], (char*)singleIndirectIndex);
+        for (i = NumDirect, ii = 0; (i < numSectors) && (ii < LevelMapNum); i++, ii++)
+            printf("%d ", singleIndirectIndex[ii]);
+        if (numSectors > NumDirect + LevelMapNum) {
+            printf("\n  Double indirect indexing: (mapping table sector: %d)", dataSectors[DoubleIndirectSectorIdx]);
+            synchDisk->ReadSector(dataSectors[DoubleIndirectSectorIdx], (char*)doubleIndirectIndex);
+            for (i = NumDirect + LevelMapNum, ii = 0; (i < numSectors) && (ii < LevelMapNum); ii++) {
+                printf("\n    single indirect indexing: (mapping table sector: %d)\n      ", doubleIndirectIndex[ii]);
+                synchDisk->ReadSector(doubleIndirectIndex[ii], (char*)singleIndirectIndex);
+                for (iii = 0;  (i < numSectors) && (iii < LevelMapNum); i++, iii++)
+                    printf("%d ", singleIndirectIndex[iii]);
+            }
+        }
+    }
+    printf("\nFile contents:\n");
+    for (i = k = 0; (i < numSectors) && (i < NumDirect); i++)
+    {
+        synchDisk->ReadSector(dataSectors[i], data);
+        for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++)
+            printChar(data[j]);
+        printf("\n");
+    }
+    if (numSectors > NumDirect) {
+        synchDisk->ReadSector(dataSectors[IndirectSectorIdx], (char*)singleIndirectIndex);
+        for (i = NumDirect, ii = 0; (i < numSectors) && (ii < LevelMapNum); i++, ii++) {
+            synchDisk->ReadSector(singleIndirectIndex[ii], data);
+            for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++)
+                printChar(data[j]);
+            printf("\n");
+        }
+        if (numSectors > NumDirect + LevelMapNum) {
+            synchDisk->ReadSector(dataSectors[DoubleIndirectSectorIdx], (char*)doubleIndirectIndex);
+            for (i = NumDirect + LevelMapNum, ii = 0; (i < numSectors) && (ii < LevelMapNum); ii++) {
+                synchDisk->ReadSector(doubleIndirectIndex[ii], (char*)singleIndirectIndex);
+                for (iii = 0; (i < numSectors) && (iii < LevelMapNum); i++, iii++) {
+                    synchDisk->ReadSector(singleIndirectIndex[iii], data);
+                    for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++)
+                        printChar(data[j]);
+                    printf("\n");
+                }
+            }
+        }
+    }
+    printf("----------------------------------------------\n");
+    delete[] data;
+}
+```
+
+And finally delete the file and free the space using `FileHeader::Deallocate`
+
+```cpp
+void
+FileHeader::Deallocate(BitMap *freeMap)
+{
+    int i, ii, iii; // For direct / single indirect / double indirect indexing
+    DEBUG('f', COLORED(OKGREEN, "Deallocating direct indexing table\n"));
+    for (i = 0; (i < numSectors) && (i < NumDirect); i++) {
+        ASSERT(freeMap->Test((int)dataSectors[i])); // ought to be marked!
+        freeMap->Clear((int)dataSectors[i]);
+    }
+    if (numSectors > NumDirect) {
+        DEBUG('f', COLORED(OKGREEN, "Deallocating single indirect indexing table\n"));
+        int singleIndirectIndex[LevelMapNum]; // used to restore the indexing map
+        synchDisk->ReadSector(dataSectors[IndirectSectorIdx], (char*)singleIndirectIndex);
+        for (i = NumDirect, ii = 0; (i < numSectors) && (ii < LevelMapNum); i++, ii++) {
+            ASSERT(freeMap->Test((int)singleIndirectIndex[ii])); // ought to be marked!
+            freeMap->Clear((int)singleIndirectIndex[ii]);
+        }
+        // Free the sector of the single indirect indexing table
+        ASSERT(freeMap->Test((int)dataSectors[IndirectSectorIdx]));
+        freeMap->Clear((int)dataSectors[IndirectSectorIdx]);
+        if (numSectors > NumDirect + LevelMapNum) {
+            DEBUG('f', COLORED(OKGREEN, "Deallocating double indirect indexing table\n"));
+            int doubleIndirectIndex[LevelMapNum];
+            synchDisk->ReadSector(dataSectors[DoubleIndirectSectorIdx], (char*)doubleIndirectIndex);
+            for (i = NumDirect + LevelMapNum, ii = 0; (i < numSectors) && (ii < LevelMapNum); ii++) {
+                synchDisk->ReadSector(doubleIndirectIndex[ii], (char*)singleIndirectIndex);
+                for (iii = 0; (i < numSectors) && (iii < LevelMapNum); i++, iii++) {
+                    ASSERT(freeMap->Test((int)singleIndirectIndex[iii])); // ought to be marked!
+                    freeMap->Clear((int)singleIndirectIndex[iii]);
+                }
+                // Free the sector of the single indirect indexing table
+                ASSERT(freeMap->Test((int)doubleIndirectIndex[ii]));
+                freeMap->Clear((int)doubleIndirectIndex[ii]);
+            }
+            // Free the sector of the single indirect indexing table
+            ASSERT(freeMap->Test((int)dataSectors[DoubleIndirectSectorIdx]));
+            freeMap->Clear((int)dataSectors[DoubleIndirectSectorIdx]);
+        }
+    }
+}
+```
+
+#### Generate the test case and test
+
+> * [How To Quickly Generate A Large File On The Command Line (With Linux)](https://skorks.com/2010/03/how-to-quickly-generate-a-large-file-on-the-command-line-with-linux/)
+
+The test scrpt is at `code/filesys/test/test_exercise_3.sh` (comment out the other file generation command to test with specific file size)
+
+```sh
+#!/bin/sh
+# goto filesys/ in docker
+cd /nachos/nachos-3.4/code/filesys
+
+echo "Generate the large file for single indirect indexing"
+dd if=/dev/zero of=largeFile count=3 bs=1024 # 3KB
+
+echo "Generate the large file for double indirect indexing"
+dd if=/dev/urandom of=largeFile count=20 bs=1024 # 20KB
+
+echo "Using 100,000 Decimal Digits of PI as large file"
+cp test/PI.100.000.TXT largeFile # 112KB
+
+# use -Q to disable verbose machine messages
+echo "=== format the DISK ==="
+./nachos -Q -f
+echo "=== copies file \"largeFile\" from UNIX to Nachos ==="
+./nachos -Q -cp largeFile largeFile
+echo "=== prints the contents of the entire file system ==="
+./nachos -Q -D
+
+echo "=== remove the file \"largeFile\" from Nachos ==="
+./nachos -Q -r largeFile
+echo "=== prints the contents of the entire file system again ==="
+./nachos -Q -D
+
+```
+
+And there are three phases (I'll just showing the part of the result such as file header information for them)
+
+> `docker run -it nachos_filesys nachos/nachos-3.4/code/filesys/test/test_exercise_3.sh`
+
+1. Single indirect indexing
+   * Generate 3KB size file using `/dev/zero`
+     * `dd if=/dev/zero of=largeFile count=3 bs=1024`
+   * Result
+
+        ```txt
+        Generate the large file for single indirect indexing
+        3+0 records in
+        3+0 records out
+        3072 bytes (3.1 kB) copied, 0.0001373 s, 22.4 MB/s
+        === format the DISK ===
+        === copies file "largeFile" from UNIX to Nachos ===
+        === prints the contents of the entire file system ===
+        ...
+        ------------ FileHeader contents -------------
+        File type: None
+        Created: Wed May 15 11:47:47 2019
+        Modified: Wed May 15 11:47:47 2019
+        Last visited: Wed May 15 11:47:47 2019
+        File size: 3072.  File blocks:
+          Direct indexing:
+            12 13 14 15 16 17 18 
+          Indirect indexing: (mapping table sector: 19)
+            20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 
+        File contents:
+        \0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0
+        ...
+        === remove the file "largeFile" from Nachos ===
+        === prints the contents of the entire file system again ===
+        ...
+        Bitmap set:
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+        ```
+
+2. Double indirect indexing
+   * Generate 20KB size file using `/dev/urandom`
+     * `dd if=/dev/urandom of=largeFile count=20 bs=1024`
+   * Result
+
+        ```txt
+        Generate the large file for double indirect indexing
+        20+0 records in
+        20+0 records out
+        20480 bytes (20 kB) copied, 0.000365 s, 56.1 MB/s
+        === format the DISK ===
+        === copies file "largeFile" from UNIX to Nachos ===
+        === prints the contents of the entire file system ===
+        ...
+        ------------ FileHeader contents -------------
+        File type: None
+        Created: Wed May 15 11:22:43 2019
+        Modified: Wed May 15 11:22:43 2019
+        Last visited: Wed May 15 11:22:43 2019
+        File size: 20480.  File blocks:
+          Direct indexing:
+            12 13 14 15 16 17 18 
+          Indirect indexing: (mapping table sector: 19)
+            20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 
+          Double indirect indexing: (mapping table sector: 52)
+            single indirect indexing: (mapping table sector: 53)
+              54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 
+            single indirect indexing: (mapping table sector: 86)
+              87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 
+            single indirect indexing: (mapping table sector: 119)
+              120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 144 145 146 147 148 149 150 151 
+            single indirect indexing: (mapping table sector: 152)
+              153 154 155 156 157 158 159 160 161 162 163 164 165 166 167 168 169 170 171 172 173 174 175 176 177
+        File contents:
+        \e6\db\bc\e1!\ee\7f\dd\e4\87J\e5\bcE\1e<\8a(\c2^9\dao\137\7\af\c2\f7\4\17Xz\81C@\d9g\c1\93\84\9b<\d5\d1\a6{\d2\a8\f6>\\9a\98\da\\19*\e1\eb\fe\f1\13\e5\1d\f2\81\108c!\18\e4\85%\1d\e9\ca\ad\f3\d8\a0\e8n\0x\8c\17\ac\85\d1\86\e0C\cc,RB9\ebA\b6\81\94W\bb\8f\84TW\9cm\4{\8d\a3k\bc\ca\75\e7\e9.\a67~
+        ...
+        === remove the file "largeFile" from Nachos ===
+        === prints the contents of the entire file system again ===
+        Bitmap set:
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+        ```
+
+3. Test the limit of Double indirect indexing using the [PI's 100000 digits](https://thestarman.pcministry.com/math/pi/PI.100.000.TXT) text file (112KB). (Currently, my double indirect indexing can support file size up to 136320 Bytes!)
+   * Result
+
+        ```txt
+        ...
+        ------------ FileHeader contents -------------
+        File type: None
+        Created: Wed May 15 11:50:03 2019
+        Modified: Wed May 15 11:50:04 2019
+        Last visited: Wed May 15 11:50:04 2019
+        File size: 114416.  File blocks:
+          Direct indexing:
+            12 13 14 15 16 17 18 
+          Indirect indexing: (mapping table sector: 19)
+            20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 
+          Double indirect indexing: (mapping table sector: 52)
+            single indirect indexing: (mapping table sector: 53)
+              54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 
+            single indirect indexing: (mapping table sector: 86)
+              87 88 89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 
+            single indirect indexing: (mapping table sector: 119)
+              120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 144 145 146 147 148 149 150 151 
+            single indirect indexing: (mapping table sector: 152)
+              153 154 155 156 157 158 159 160 161 162 163 164 165 166 167 168 169 170 171 172 173 174 175 176 177 178 179 180 181 182 183 184 
+            single indirect indexing: (mapping table sector: 185)
+              186 187 188 189 190 191 192 193 194 195 196 197 198 199 200 201 202 203 204 205 206 207 208 209 210 211 212 213 214 215 216 217 
+            single indirect indexing: (mapping table sector: 218)
+              219 220 221 222 223 224 225 226 227 228 229 230 231 232 233 234 235 236 237 238 239 240 241 242 243 244 245 246 247 248 249 250 
+            single indirect indexing: (mapping table sector: 251)
+              252 253 254 255 256 257 258 259 260 261 262 263 264 265 266 267 268 269 270 271 272 273 274 275 276 277 278 279 280 281 282 283 
+            single indirect indexing: (mapping table sector: 284)
+              285 286 287 288 289 290 291 292 293 294 295 296 297 298 299 300 301 302 303 304 305 306 307 308 309 310 311 312 313 314 315 316 
+            single indirect indexing: (mapping table sector: 317)
+              318 319 320 321 322 323 324 325 326 327 328 329 330 331 332 333 334 335 336 337 338 339 340 341 342 343 344 345 346 347 348 349 
+            single indirect indexing: (mapping table sector: 350)
+              351 352 353 354 355 356 357 358 359 360 361 362 363 364 365 366 367 368 369 370 371 372 373 374 375 376 377 378 379 380 381 382 
+            single indirect indexing: (mapping table sector: 383)
+              384 385 386 387 388 389 390 391 392 393 394 395 396 397 398 399 400 401 402 403 404 405 406 407 408 409 410 411 412 413 414 415 
+            single indirect indexing: (mapping table sector: 416)
+              417 418 419 420 421 422 423 424 425 426 427 428 429 430 431 432 433 434 435 436 437 438 439 440 441 442 443 444 445 446 447 448 
+            single indirect indexing: (mapping table sector: 449)
+              450 451 452 453 454 455 456 457 458 459 460 461 462 463 464 465 466 467 468 469 470 471 472 473 474 475 476 477 478 479 480 481 
+            single indirect indexing: (mapping table sector: 482)
+              483 484 485 486 487 488 489 490 491 492 493 494 495 496 497 498 499 500 501 502 503 504 505 506 507 508 509 510 511 512 513 514 
+            single indirect indexing: (mapping table sector: 515)
+              516 517 518 519 520 521 522 523 524 525 526 527 528 529 530 531 532 533 534 535 536 537 538 539 540 541 542 543 544 545 546 547 
+            single indirect indexing: (mapping table sector: 548)
+              549 550 551 552 553 554 555 556 557 558 559 560 561 562 563 564 565 566 567 568 569 570 571 572 573 574 575 576 577 578 579 580 
+            single indirect indexing: (mapping table sector: 581)
+              582 583 584 585 586 587 588 589 590 591 592 593 594 595 596 597 598 599 600 601 602 603 604 605 606 607 608 609 610 611 612 613 
+            single indirect indexing: (mapping table sector: 614)
+              615 616 617 618 619 620 621 622 623 624 625 626 627 628 629 630 631 632 633 634 635 636 637 638 639 640 641 642 643 644 645 646 
+            single indirect indexing: (mapping table sector: 647)
+              648 649 650 651 652 653 654 655 656 657 658 659 660 661 662 663 664 665 666 667 668 669 670 671 672 673 674 675 676 677 678 679 
+            single indirect indexing: (mapping table sector: 680)
+              681 682 683 684 685 686 687 688 689 690 691 692 693 694 695 696 697 698 699 700 701 702 703 704 705 706 707 708 709 710 711 712 
+            single indirect indexing: (mapping table sector: 713)
+              714 715 716 717 718 719 720 721 722 723 724 725 726 727 728 729 730 731 732 733 734 735 736 737 738 739 740 741 742 743 744 745 
+            single indirect indexing: (mapping table sector: 746)
+              747 748 749 750 751 752 753 754 755 756 757 758 759 760 761 762 763 764 765 766 767 768 769 770 771 772 773 774 775 776 777 778 
+            single indirect indexing: (mapping table sector: 779)
+              780 781 782 783 784 785 786 787 788 789 790 791 792 793 794 795 796 797 798 799 800 801 802 803 804 805 806 807 808 809 810 811 
+            single indirect indexing: (mapping table sector: 812)
+              813 814 815 816 817 818 819 820 821 822 823 824 825 826 827 828 829 830 831 832 833 834 835 836 837 838 839 840 841 842 843 844 
+            single indirect indexing: (mapping table sector: 845)
+              846 847 848 849 850 851 852 853 854 855 856 857 858 859 860 861 862 863 864 865 866 867 868 869 870 871 872 873 874 875 876 877 
+            single indirect indexing: (mapping table sector: 878)
+              879 880 881 882 883 884 885 886 887 888 889 890 891 892 893 894 895 896 897 898 899 900 901 902 903 904 905 906 907 908 909 910 
+            single indirect indexing: (mapping table sector: 911)
+              912 913 914 915 916 917 918 919 920 921 922 923 924 925 926 927 928 929 930 931 932 933 934 
+        ...
+        ```
+
 ### Exercise 4: Implement multi-level file directory
 
 ### Exercise 5: Dynamic allocate file length
@@ -975,6 +1434,7 @@ struct tm {
 ## TODO
 
 * [ ] Fill up more detail in Exercise 1
+* [ ] Maybe I can smalller the size of storing time in FileHeader (just store `time_t`?!)
 
 ## Resources
 
