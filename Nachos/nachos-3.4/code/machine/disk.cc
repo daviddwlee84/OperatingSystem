@@ -138,8 +138,9 @@ Disk::WriteRequest(int sectorNumber, char* data)
 {
     int ticks = ComputeLatency(sectorNumber, TRUE);
 
-    ASSERT(!active);
-    ASSERT((sectorNumber >= 0) && (sectorNumber < NumSectors));
+    ASSERT_MSG(!active, "Only one request at a time"); // only one request at a time
+    ASSERT_MSG((sectorNumber >= 0) && (sectorNumber < NumSectors),
+                "Not a proper disk sector write request");
     
     DEBUG('d', "Writing to sector %d\n", sectorNumber);
     Lseek(fileno, SectorSize * sectorNumber + MagicSize, 0);
