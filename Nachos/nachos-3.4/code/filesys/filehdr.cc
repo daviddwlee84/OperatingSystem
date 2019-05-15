@@ -84,15 +84,16 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
             dataSectors[DoubleIndirectSectorIdx] = freeMap->Find();
             const int sectorsLeft = numSectors - NumDirect - LevelMapNum;
             const int secondIndirectNum = divRoundUp(sectorsLeft, LevelMapNum);
+            int doubleIndirectIndex[LevelMapNum];
             for (int j = 0; j < secondIndirectNum; j++) {
-                int doubleIndirectIndex[LevelMapNum];
                 doubleIndirectIndex[j] = freeMap->Find();
                 int singleIndirectIndex[LevelMapNum];
-                for (int i = 0; i < LevelMapNum, i + j * LevelMapNum < numSectors; i++) {
+                for (int i = 0; (i < LevelMapNum) && (i + j * LevelMapNum < sectorsLeft); i++) {
                     singleIndirectIndex[i] = freeMap->Find();
                 }
                 synchDisk->WriteSector(doubleIndirectIndex[j], (char*)singleIndirectIndex);
             }
+            synchDisk->WriteSector(dataSectors[DoubleIndirectSectorIdx], (char*)doubleIndirectIndex);
         } else {
             ASSERT_MSG(FALSE, "File exceeded the maximum representation of the direct map");
         }
@@ -108,7 +109,7 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
 //	"freeMap" is the bit map of free disk sectors
 //----------------------------------------------------------------------
 
-void 
+void
 FileHeader::Deallocate(BitMap *freeMap)
 {
 #ifndef INDIRECT_MAP
@@ -136,7 +137,21 @@ FileHeader::Deallocate(BitMap *freeMap)
         freeMap->Clear((int)dataSectors[IndirectSectorIdx]);
         if (numSectors > NumDirect + LevelMapNum) {
             DEBUG('f', COLORED(OKGREEN, "Deallocating double indirect indexing table\n"));
-            // TODO: Double Indirect Indexing
+            int doubleIndirectIndex[LevelMapNum];
+            synchDisk->ReadSector(dataSectors[DoubleIndirectSectorIdx], (char*)doubleIndirectIndex);
+            for (i = NumDirect + LevelMapNum, ii = 0; (i < numSectors) && (ii < LevelMapNum); ii++) {
+                synchDisk->ReadSector(doubleIndirectIndex[ii], (char*)singleIndirectIndex);
+                for (iii = 0; (i < numSectors) && (iii < LevelMapNum); i++, iii++) {
+                    ASSERT(freeMap->Test((int)singleIndirectIndex[iii])); // ought to be marked!
+                    freeMap->Clear((int)singleIndirectIndex[iii]);
+                }
+                // Free the sector of the single indirect indexing table
+                ASSERT(freeMap->Test((int)doubleIndirectIndex[ii]));
+                freeMap->Clear((int)doubleIndirectIndex[ii]);
+            }
+            // Free the sector of the single indirect indexing table
+            ASSERT(freeMap->Test((int)dataSectors[DoubleIndirectSectorIdx]));
+            freeMap->Clear((int)dataSectors[DoubleIndirectSectorIdx]);
         }
     }
 #endif
@@ -196,7 +211,13 @@ FileHeader::ByteToSector(int offset)
         synchDisk->ReadSector(dataSectors[IndirectSectorIdx], (char*)singleIndirectIndex);
         return singleIndirectIndex[sectorNum];
     } else {
-        // TODO: Double Indirect Indexing
+        const int indexSectorNum = (offset - singleIndirectMapSize) / SectorSize / LevelMapNum;
+        const int sectorNum = (offset - singleIndirectMapSize) / SectorSize % LevelMapNum;
+        int doubleIndirectIndex[LevelMapNum]; // used to restore the indexing map
+        synchDisk->ReadSector(dataSectors[DoubleIndirectSectorIdx], (char*)doubleIndirectIndex);
+        int singleIndirectIndex[LevelMapNum]; // used to restore the indexing map
+        synchDisk->ReadSector(doubleIndirectIndex[indexSectorNum], (char*)singleIndirectIndex);
+        return singleIndirectIndex[sectorNum];
     }
 #endif
 }
@@ -246,6 +267,7 @@ FileHeader::Print()
 #else
     int ii, iii; // For single / double indirect indexing
     int singleIndirectIndex[LevelMapNum]; // used to restore the indexing map
+    int doubleIndirectIndex[LevelMapNum]; // used to restore the indexing map
     printf("  Direct indexing:\n    ");
     for (i = 0; (i < numSectors) && (i < NumDirect); i++)
         printf("%d ", dataSectors[i]);
@@ -255,8 +277,14 @@ FileHeader::Print()
         for (i = NumDirect, ii = 0; (i < numSectors) && (ii < LevelMapNum); i++, ii++)
             printf("%d ", singleIndirectIndex[ii]);
         if (numSectors > NumDirect + LevelMapNum) {
-            printf("\n  Double indirect indexing:\n\t");
-            // TODO: Double Indirect Indexing
+            printf("\n  Double indirect indexing: (mapping table sector: %d)", dataSectors[DoubleIndirectSectorIdx]);
+            synchDisk->ReadSector(dataSectors[DoubleIndirectSectorIdx], (char*)doubleIndirectIndex);
+            for (i = NumDirect + LevelMapNum, ii = 0; (i < numSectors) && (ii < LevelMapNum); ii++) {
+                printf("\n    single indirect indexing: (mapping table sector: %d)\n      ", doubleIndirectIndex[ii]);
+                synchDisk->ReadSector(doubleIndirectIndex[ii], (char*)singleIndirectIndex);
+                for (iii = 0;  (i < numSectors) && (iii < LevelMapNum); i++, iii++)
+                    printf("%d ", singleIndirectIndex[iii]);
+            }
         }
     }
     printf("\nFile contents:\n");
@@ -276,7 +304,16 @@ FileHeader::Print()
             printf("\n");
         }
         if (numSectors > NumDirect + LevelMapNum) {
-            //TODO: Double Indirect Indexing
+            synchDisk->ReadSector(dataSectors[DoubleIndirectSectorIdx], (char*)doubleIndirectIndex);
+            for (i = NumDirect + LevelMapNum, ii = 0; (i < numSectors) && (ii < LevelMapNum); ii++) {
+                synchDisk->ReadSector(doubleIndirectIndex[ii], (char*)singleIndirectIndex);
+                for (iii = 0; (i < numSectors) && (iii < LevelMapNum); i++, iii++) {
+                    synchDisk->ReadSector(singleIndirectIndex[iii], data);
+                    for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++)
+                        printChar(data[j]);
+                    printf("\n");
+                }
+            }
         }
     }
 #endif

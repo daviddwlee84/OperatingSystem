@@ -2,14 +2,14 @@
 # goto filesys/ in docker
 cd /nachos/nachos-3.4/code/filesys
 
-echo "Generate the large file for single indirect indexing"
-dd if=/dev/zero of=largeFile count=3 bs=1024 # 3KB
+# echo "Generate the large file for single indirect indexing"
+# dd if=/dev/zero of=largeFile count=3 bs=1024 # 3KB
 
 # echo "Generate the large file for double indirect indexing"
 # dd if=/dev/urandom of=largeFile count=20 bs=1024 # 20KB
 
-# echo "Using 100,000 Decimal Digits of PI as large file"
-# cp test/PI.100.000.TXT largeFile # 112KB
+echo "Using 100,000 Decimal Digits of PI as large file"
+cp test/PI.100.000.TXT largeFile # 112KB
 
 # use -Q to disable verbose machine messages
 echo "=== format the DISK ==="
