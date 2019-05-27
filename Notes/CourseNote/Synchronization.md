@@ -119,9 +119,17 @@ Signal() -> Notify()
 
 ![Wiki MESA style monitor](https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/Monitor_%28synchronization%29-Mesa.png/200px-Monitor_%28synchronization%29-Mesa.png)
 
+> Hoare vs. MESA Monitor
+
+p.41
+
+p.72
+
 #### Hansen Monitor
 
 ### Solving Producer-Consumer Problem with Monitor
+
+> need "while" in MESA monitor
 
 ### Monitor Implementation
 

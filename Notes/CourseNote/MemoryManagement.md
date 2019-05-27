@@ -12,7 +12,7 @@ Memory Management Hardware
 
 * [PTBR (PDBR)](#PTBR-(PDBR)): Page-table (Page-directory) Base Register
 * [MMU](#MMU): Memory Management Unit 記憶體(內存)管理單元
-  * [TLB](#TLB): Translate Look-aside Buffer 快表
+  * [TLB](#TLB): Translate Look-aside Buffer 塊表
 
 [Paging](#Paging) 頁式儲存管理
 
@@ -493,6 +493,12 @@ Improvement => Using Hash Table
 
 ![Figure 8.19 - Hashed page table](https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/images/Chapter8/8_19_HashedPageTable.jpg)
 
+> Inverted Page Table vs. Normal Page Table
+>
+> | -                | Inverted Page Table | Normal Page Table    |
+> | ---------------- | ------------------- | -------------------- |
+> | Tables in System | Only one            | One for each process |
+
 ## MMU
 
 ```txt
@@ -551,10 +557,10 @@ Three possible result of looking TLB
 
 > TLB is not equal to Cache. (different thing storing different stuff)
 
-TLB vs. Cache|TLB|Cache
--------------|---|-----
-Stored Content|Page table #|Instruction or Data
-Access with|Virtual Address|Physical Address
+| TLB vs. Cache  | TLB             | Cache               |
+| -------------- | --------------- | ------------------- |
+| Stored Content | Page table #    | Instruction or Data |
+| Access with    | Virtual Address | Physical Address    |
 
 #### RSS
 
@@ -666,9 +672,9 @@ The Scenario
     * TLBI: 0~1 bit of VPN (*2-bit*)
     * TLBT: the rest of VPN
 * Page Table
-    VPN|PPN|Valid
-    ---|---|-----
-    test|test|test
+    | VPN  | PPN  | Valid |
+    | ---- | ---- | ----- |
+    | test | test | test  |
 * Cache
   * **16 lines**, *4-byte block size*
     * CO: 0~1 bit (*2 offset bits*)

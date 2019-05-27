@@ -89,6 +89,7 @@ PKU OS course project and notes based on Nachos and XV6.
 
 * [xmuliushuo/nachos](https://github.com/xmuliushuo/nachos)
 * [MrOrz/nachos](https://github.com/MrOrz/nachos)
+* [SergioShen/Nachos](https://github.com/SergioShen/nachos)
 * [zhanglizeyi/CSE120](https://github.com/zhanglizeyi/CSE120)
   * [**Nachos中文教程.pdf**](https://github.com/zhanglizeyi/CSE120/blob/master/Nachos%E4%B8%AD%E6%96%87%E6%95%99%E7%A8%8B.pdf)
 

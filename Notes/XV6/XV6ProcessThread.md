@@ -126,3 +126,9 @@ Code to read
 #### TLB Translation Lookaside Buffer
 
 ![wiki page table action](https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Page_table_actions.svg/625px-Page_table_actions.svg.png)
+
+## Resources
+
+Slides
+
+* [COP4610: Operating Systems Xv6 Scheduling](https://www.cs.fsu.edu/~zwang/files/cop4610/Fall2016/Schedule.pdf)

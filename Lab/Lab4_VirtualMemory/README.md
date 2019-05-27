@@ -1733,7 +1733,9 @@ Add the thread ID attribute to page table entry in `code/machine/translate.h`
 
 ```c
 class TranslationEntry {
+
     ...
+
 #ifdef INVERTED_PAGETABLE // Lab4: Inverted Page Table
     int threadId;
 #endif
@@ -1752,7 +1754,6 @@ void AddrSpace::RestoreState()
     machine->pageTableSize = numPages;
 #endif
 }
-
 ```
 
 We'll share the same function name with bitmap but with different implementation in `code/machine/machine.cc`

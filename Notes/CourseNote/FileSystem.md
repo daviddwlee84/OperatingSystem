@@ -32,7 +32,14 @@ The file system only two way to access it.
 
 #### HDD Structure
 
+Components
 
+* **Arm**
+  * Head
+* **Track**
+* **Sector**
+* Cylinder
+* Platter
 
 Disk Access
 
@@ -41,6 +48,14 @@ Steps:
 1. 
 2. 
 3. 
+
+Access Time = Seek Time + Rotational Delay + Transfer Time
+
+* Seek Time: move the disk arm and settle on a cylinder (5-15 ms)
+* Rotational Delay: (8 ms for full rotation at 7200 RPM) => average delay = 4ms
+* Transfer Time: (1 ms for an 8KB block at 8MB/s)
+
+> Bandwidth utilization is less than 50% for any noncontiguous access at a block grain
 
 ### File Attributes
 
@@ -237,6 +252,11 @@ The disk has been formatted. And show the final state of the disk.
 
 ## Resources
 
+* [**Slides - File Systems and Disk Layout File Systems and Disk Layout**](http://db.cs.duke.edu/courses/spring01/cps110/slides/disk-fs.pdf) - Include Nachos
+* [Disk sector](https://en.wikipedia.org/wiki/Disk_sector)
+* [Data cluster](https://en.wikipedia.org/wiki/Data_cluster)
+* [Wiki - Block (data storage)](https://en.wikipedia.org/wiki/Block_(data_storage))
+
 ### Book
 
 Operating System Concept 9ed.
@@ -300,3 +320,16 @@ Modern Operating System 4ed. Part 4 File System
 * Ch4.5 Example File System
   * Ch4.5.1 The MS-DOS File System
   * Ch4.5.2 The UNIX V7 File System
+
+### UNIX File System
+
+* [Wiki - Unix File System](https://en.wikipedia.org/wiki/Unix_File_System) For UFS, a specific file system used by many Unix and Unix-like operating systems, see Unix File System.
+* [Wiki - inode](https://en.wikipedia.org/wiki/Inode)
+
+> * [Wiki - Filesystem Hierarchy Standard](https://en.wikipedia.org/wiki/Filesystem_Hierarchy_Standard)
+> * [GeeksforGeeks - Operating System | Unix File System](https://www.geeksforgeeks.org/operating-system-unix-file-system/)
+> * [Wiki - Unix filesystem](https://en.wikipedia.org/wiki/Unix_filesystem)
+> * [5. The UNIX Filesystem](http://web.deu.edu.tr/doc/oreily/networking/puis/ch05_01.htm)
+> * [Unix / Linux - File System Basics](https://www.tutorialspoint.com/unix/unix-file-system.htm)
+> * [The Unix File System](http://homepages.uc.edu/~thomam/Intro_Unix_Text/File_System.html)
+> * [Unix File System and Directory Structure](https://www.gotothings.com/unix/unix-file-system-and-directory-structure.htm)
