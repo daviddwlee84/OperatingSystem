@@ -17,6 +17,7 @@
 #include "disk.h"
 #include "bitmap.h"
 #include <time.h> // Lab5: for created time, modified time, last visited time
+#include <libgen.h> // Lab5: for dirname and basename
 
 // Disk part
 #define NumOfIntHeaderInfo 2
@@ -86,6 +87,7 @@ class FileHeader {
     void setCreateTime(char* t) { strcpy(createdTime, t); }
     void setModifyTime(char* t) { strcpy(modifiedTime, t); }
     void setVisitTime(char* t) { strcpy(lastVisitedTime, t); }
+    char* getFileType() { return strdup(fileType); }
     // In-core part
     void setHeaderSector(int sector) { headerSector = sector; }
     int getHeaderSector() { return headerSector; }
@@ -134,8 +136,18 @@ class FileHeader {
     // char filePath[MaxPathLength]; // uncomment when we need it
 };
 
+// Lab5: Multi-level directory
+#define MAX_DIR_DEPTH 5 // Because we don't have malloc() so assign a max depth to initialize the array size
+
+typedef struct {
+    char* dirArray[MAX_DIR_DEPTH];
+    int dirDepth; // if root dir, dir depth = 0
+    char* base;
+} FilePath;
+
 char* printChar(char oriChar);
 extern char* getFileExtension(char *filename);
 extern char* getCurrentTime(void);
+extern FilePath pathParser(char* path);
 
 #endif // FILEHDR_H
