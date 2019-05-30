@@ -1,5 +1,7 @@
 # XV6 Source Code Reading -- Process and Thread
 
+[Presentation Slides](slides/XV6_thread_presentation.pdf)
+
 ## Requirement
 
 Code to read
@@ -15,9 +17,9 @@ Code to read
   * [X] `elf.h` (p.9)
 * Processes
   * [X] `vm.c` (p.17)
-  * [ ] `proc.h` (p.23)
-  * [ ] `proc.c` (p.24)
-  * [ ] `swtch.S` (p.30)
+  * [X] `proc.h` (p.23)
+  * [X] `proc.c` (p.24)
+  * [X] `swtch.S` (p.30)
   * [ ] `kalloc.c` (p.31)
 
 ## Tracing Code
@@ -132,3 +134,15 @@ Code to read
 Slides
 
 * [COP4610: Operating Systems Xv6 Scheduling](https://www.cs.fsu.edu/~zwang/files/cop4610/Fall2016/Schedule.pdf)
+
+Book
+
+* [book-rev10](https://github.com/mit-pdos/xv6-book)
+  * Ch1 Operating system organization
+    * Process overview
+    * Code: Creating the first process
+    * Code: Running the first process
+  * Ch5 Scheduling
+    * Multiplexing
+    * Code: Context switching
+    * Code: Scheduling

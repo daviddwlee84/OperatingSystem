@@ -8,3 +8,4 @@ xv6 is a modern reimplementation of Sixth Edition Unix in ANSI C for multiproces
   * [Xv6, a simple Unix-like teaching operating system](https://pdos.csail.mit.edu/6.828/2018/xv6.html)
   * [Xv6 Printout](https://pdos.csail.mit.edu/6.828/2018/xv6/xv6-rev10.pdf)
   * [Xv6 Book](https://pdos.csail.mit.edu/6.828/2018/xv6/book-rev10.pdf)
+    * [Github mit-pdos/xv6-book](https://github.com/mit-pdos/xv6-book)
