@@ -37,6 +37,8 @@ Folder
 * network
 * vm
 
+> * [Nachos:- Directory listing](https://www.cs.odu.edu/~cs471/soumya/list.html)
+
 ## Executables
 
 * `nachos`: one for each compile (subdirectory test)
@@ -163,6 +165,7 @@ gdb nachos
 * [Nachos Overview](https://www.cs.odu.edu/~cs471/soumya/salsa.html)
   * [Nachos Details](https://www.cs.odu.edu/~cs471/soumya/details.html)
 * [CS 1550 Nachos](https://people.cs.pitt.edu/~manas/courses/CS1550/nachos.htm)
+* [NachOS安裝心得](https://zishen.blogspot.com/2011/04/nachos.html)
 
 ### UC Berkeley
 
@@ -173,6 +176,7 @@ gdb nachos
     * Understanding the Linux Kernel, Third Edition (Supplemental)
     * Linux Kernel Development 3rd Edition (Supplemental)
   * [Semester archives](https://inst.eecs.berkeley.edu/~cs162/archives.html)
+  * [CS162 Spring 2005](http://www-inst.eecs.berkeley.edu/~cs162/sp05/Nachos/)
   * [CS162 Spring 2007 Phases](https://inst.eecs.berkeley.edu/~cs162/sp07/Nachos/phases.shtml) - Using Java
     * [Nachos Phase 1: Build a thread system](https://inst.eecs.berkeley.edu/~cs162/sp07/Nachos/phase1.shtml)
     * [Nachos Phase 2: Multiprogramming](https://inst.eecs.berkeley.edu/~cs162/sp07/Nachos/phase2.shtml)

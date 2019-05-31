@@ -103,6 +103,19 @@ class Thread {
 
 ## MAL MIPS Assembly Language
 
+### Instructions
+
+* [**MIPS Instruction Reference**](http://www.mrc.uidaho.edu/mrc/people/jff/digital/MIPSir.html)
+* [**MIPS Instruction Reference (pdf)**](https://www.eit.lth.se/fileadmin/eit/courses/edt621/MIPS_IR.pdf)
+* [MIPS Instruction Reference](http://alumni.cs.ucr.edu/~vladimir/cs161/mips.html)
+* [MIPS Reference Sheet](http://www2.engr.arizona.edu/~ece369/Resources/spim/MIPSReference.pdf)
+
+#### System Call
+
+* [SYSCALL functions available in MARS](http://courses.missouristate.edu/kenvollmar/mars/help/syscallhelp.html)
+* [Linux MIPS - Syscall](https://www.linux-mips.org/wiki/Syscall)
+* [MIPS system calls](http://students.cs.tamu.edu/tanzir/csce350/reference/syscalls.html)
+
 ## Simulator
 
 ### QtSPIM
