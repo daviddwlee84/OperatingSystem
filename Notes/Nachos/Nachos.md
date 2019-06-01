@@ -136,6 +136,7 @@ extern void DEBUG (char flag, char* format, ...);  	// Print debug message
 > I've add `T` for TLB handling in `machine/exception.cc`
 > I've add `M` for memory management (allocation, data structure (e.g. bitmap)) in `machine/machine.cc`
 > I've add `S` for system call in `machine/exception.cc`
+> I've add `D` for multi-level directory in `filesys/filesys.cc`
 
 #### Single Stepping
 

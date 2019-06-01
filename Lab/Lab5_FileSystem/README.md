@@ -391,7 +391,19 @@ For further explaination of [UNIX i-node](#unix-i-node)
 
 > This is implemented in `code/filesys/directory.h` and `code/filesys/directory.cc`
 
-Current Nachos only has single-layer directory (i.e. root directory). And the size of directory is fixed.
+Current Nachos only has single-level directory (i.e. root directory). And the size of directory is fixed.
+
+#### Relationship between Sector, Open Directory File and Directory
+
+1. new File
+2. Open the file on the Sector
+3. new Directory
+4. Fetch from the File
+5. "do something with the directory"
+6. delete the file and directory
+
+> If in FileSystem, and accessing root directory, then it's opened when it's initialization process,
+> and it will keep staying in the memory, just use `directoryFile` directory to save time.
 
 ### Exercise 2: Expand file attributes
 
@@ -1351,6 +1363,441 @@ And there are three phases (I'll just showing the part of the result such as fil
 
 ### Exercise 4: Implement multi-level file directory
 
+As we know, the [original Nachos directory](#Directory-Structure) was using the single-level directory structure.
+
+I've made a macro `MULTI_LEVEL_DIR` for this exercise. And debug flag `D` to show the related debug messages.
+
+#### Path parser
+
+In order to manipulate the multi-level directory, we need to be able to seperate dirname and basename first.
+
+I've use the [function](#parsing-directory-and-file-name-from-a-path) offered by `libgen.h`, since this is not the main point of implementing file system.
+
+And here I declare in the `code/filesys/filehdr.h` and define in `code/filesys/filehdr.cc`
+
+```cpp
+//----------------------------------------------------------------------
+// pathParser
+//    Extract the filePath into dirname and base name.
+//    The retuen value is using the call by reference.
+// 
+//    filePath: "/foo/bar/baz.txt"
+//    dir: ["foo", "bar"]
+//    base: "baz.txt"
+//----------------------------------------------------------------------
+
+FilePath
+pathParser(char* path)
+{
+    if (path[0] == '/')
+        path = &path[1]; // Don't count the first '/'
+
+    char* ts1 = strdup(path);
+    char* ts2 = strdup(path);
+
+    FilePath filepath;
+
+    // The return of basename() will be the copy pointer of input!!
+    char* currentDir = dirname(ts1);
+    filepath.base = strdup(basename(ts2)); 
+
+    // See how depth the path is
+    int depth;
+    for (depth = 0; path[depth]; path[depth] == '/' ? depth++ : *path++);
+    filepath.dirDepth = depth;
+    ASSERT_MSG(depth <= MAX_DIR_DEPTH, "The file path depth is exceed the max directory depth");
+
+    // Not in current directory. Travel to the directory
+    while (strcmp(currentDir, ".")) { // while currentDir is not "."
+        filepath.dirArray[--depth] = strdup(basename(currentDir));
+        currentDir = dirname(currentDir);
+    }
+
+    return filepath;
+}
+```
+
+And I've made an additional data structure to store the file path. This will easier the process when traversal the directory.
+
+```c
+typedef struct {
+    char* dirArray[MAX_DIR_DEPTH];
+    int dirDepth; // if root dir, dir depth = 0
+    char* base;
+} FilePath;
+```
+
+So when a `dirDepth` is greater then 0 then the file path is a multi-level path. Thus need traversal "that much depth" to get the "base" file.
+
+#### Additional function and distinguish directory file from normal file
+
+Because of the multi-level directory, we will need additional functionality to implement such as create a directory and delete a directory and its contents recursively.
+
+So I've add two additional operation to Nachos
+
+* `-mkdir`: make directory (i.e. `mkdir`)
+* `-rd`: delete a directory recursively (i.e. `rm -r`)
+* `-ld`: list a directory (the original `-l` don't take argument)
+
+And the way to distinguish the directory file and normal file. I've tended to add the addition `.DirF` extension when we use the `-mkdir`. And then we can use the extension to seperate the normal file and directory file without having too much modification. (I've made a macro in `code/filesys/filesys.h` `#define DirFileExt "DirF"` for this)
+
+In `code/threads/main.cc` I've made the following entry of these function call.
+
+```c
+int
+main(int argc, char **argv)
+{
+#ifdef FILESYS
+#ifdef MULTI_LEVEL_DIR
+        // Lab5: Directory Operations
+        else if (!strcmp(*argv, "-mkdir")) { // make directory
+            ASSERT(argc > 1);
+            MakeDir(*(argv + 1));
+            argCount = 2;
+        } else if (!strcmp(*argv, "-rd")) { // remove Nachos file or directory recursively (i.e. rm -r in UNIX)
+            ASSERT(argc > 1);
+            bool success = fileSystem->RemoveDir(*(argv + 1));
+            ASSERT_MSG(success, "Remove directory fail!");
+            argCount = 2;
+        } else if (!strcmp(*argv, "-ld")) { // list Nachos directory
+            ASSERT(argc > 1);
+            fileSystem->ListDir(*(argv + 1));
+            argCount = 2;
+        }
+#endif // MULTI_LEVEL_DIR
+#endif // FILESYS
+```
+
+And I'll describe the `MakeDir`, `FileSystem::RemoveDir`, `FileSystem::ListDir` later on.
+
+#### Positioning the file sector in the multi-level directory
+
+Recall how we allocate a file in a directory ([here](#relationship-between-sector-open-directory-file-and-directory)).
+
+We need to first locate to the sector of the directory, open the sector as a `OpenFile` and then new a directory object to "Fetch From" it.
+
+The second step is to locate the file in the directory simply using directory's `Find` method.
+
+I've made the following functions in the `code/filesys/filesys.cc`
+
+1. `FileSystem::FindDirSector` will return the "directory" sector that a file position
+
+    ```cpp
+    //----------------------------------------------------------------------
+    // FileSystem::FindDirSector
+    // 	Look up directory in sub-directory, and return the disk sector number
+    //	where the file's header is stored. Return -1 if the filePath isn't 
+    //	in the directory or its sub-directory.
+    //----------------------------------------------------------------------
+
+    int
+    FileSystem::FindDirSector(char *filePath)
+    {
+        FilePath filepath = pathParser(filePath);
+
+        int sector = DirectorySector; // Start from root
+
+        if(filepath.dirDepth != 0) { // i.e. not root
+            OpenFile* dirFile;
+            Directory* dirTemp;
+
+            for(int i = 0; i < filepath.dirDepth; i++) {
+                DEBUG('D', COLORED(BLUE, "Finding directory \"%s\" in sector \"%d\"\n"), filepath.dirArray[i], sector);
+                dirFile = new OpenFile(sector);
+                dirTemp = new Directory(NumDirEntries);
+                dirTemp->FetchFrom(dirFile);
+                sector = dirTemp->Find(filepath.dirArray[i]);
+                if (sector == -1)
+                    break; // Not found
+            }
+            delete dirFile;
+            delete dirTemp;
+        }
+        return sector;
+    }
+    ```
+  
+2. `FileSystem::FindDir` warp the previous function, which will purify the code in other function because first of all we will need to locate a Directory object very often. And secondly, we will always open the "root directory file" (`directoryFile`), so when the directory sector is "root", then we won't need to re-open the file.
+
+    ```cpp
+    //----------------------------------------------------------------------
+    // FileSystem::FindDir
+    // 	Look up directory in sub-directory, and get the disk sector number
+    //	where the file's header is stored. Return empty Directory if the filePath
+    //  isn't in the directory or its sub-directory.
+    //----------------------------------------------------------------------
+
+    void*
+    FileSystem::FindDir(char *filePath)
+    {
+        Directory* returnDir = new Directory(NumDirEntries);
+        int sector = FindDirSector(filePath);
+
+        if(sector == DirectorySector) { // i.e. root
+            returnDir->FetchFrom(directoryFile);
+        } else if (sector != -1) {
+            OpenFile* dirFile = new OpenFile(sector);
+            returnDir->FetchFrom(dirFile);
+            delete dirFile;
+        } else {
+            DEBUG('D', COLORED(WARNING, "No such directory. (might be deleted)\n"));
+        }
+
+        return (void *)returnDir;
+    }
+    ```
+
+    There is a tricy point, that I don't define the return type of the function to be `Directory*` but `void*` instead. That's because when I try to `#include "directory.h"` in `code/filesys/filesys.h` this will cause lots of compilation error. So I just couldn't use the `Directory*` type in `code/filesys/filesys.h`. That's why I use `void*`, and later on I'll use `(Directory*)` to transfer it back.
+
+Here is a example of using it.
+
+```cpp
+directory = (Directory*)FindDir(name);
+FilePath filepath = pathParser(name);
+if (filepath.dirDepth > 0) {
+    name = filepath.base;
+}
+```
+
+We get the directory recording to the file path name. And then filter out the base name when it is a multi-level path. This will be use a lot in `code/filesys/filesys.cc`
+
+#### `FileSystem::Create` and `MakeDir`
+
+> Related operation: `-cp`, `-mkdir`
+
+When creating a file or a directory in Nachos file system we will need this function.
+
+I'll start from the `MakeDir` which I've defined in `code/filesys/fstest.cc`
+
+```cpp
+//----------------------------------------------------------------------
+// MakeDir
+// 	Making the directory with name "dirname" in Nachos file system
+//----------------------------------------------------------------------
+
+void
+MakeDir(char *dirname)
+{
+    DEBUG('D', COLORED(BLUE, "Making directory: %s\n"), dirname);
+    fileSystem->Create(dirname, -1);
+    // -1 means DirectoryFileSize
+}
+```
+
+> (I'll only explain the part that I've modified of `FileSystem::Create`. For more detail just check out the source code in `code/filesys/filesys.cc`)
+
+When I pass the file size as -1, it means I want to create a directory (which save the argument). So in the `FileSystem::Create` I'll first determine if I'm going to create a file or directory.
+
+```cpp
+bool isDir = FALSE;
+if (initialSize == -1) {
+    isDir = TRUE;
+    initialSize = DirectoryFileSize;
+}
+```
+
+Second, we need to locate the directory sector and open the directory file. (At this moment we can't just use the `FileSystem::FindDir` because we need to open the directory file using its sector to write back the file or directory file, so I use `FileSystem::FindDirSector` instead)
+
+```cpp
+int dirSector = FindDirSector(name);
+ASSERT_MSG(dirSector != -1, "Make sure you create file/dir in the existing directory.");
+OpenFile* dirFile = new OpenFile(dirSector);
+directory->FetchFrom(dirFile);
+FilePath filepath = pathParser(name);
+if (filepath.dirDepth > 0) {
+    name = filepath.base;
+}
+```
+
+And then we get the "directory" object where the file locate in. The next process of finding a free space to allocate is the same.
+
+Once we successfully allocate a header, then we're now creating file. There are two cases, if we're creating the normal file then the process is the same in [Exercise 2](#12-init-and-update-the-fileheader). But if it is a directory file.
+
+1. Assign the file type as `DirFileExt`
+2. Create (new) a directory object (sub directory in current "directory")
+3. Open the file of the header (using its sector that we've allocated)
+4. Write the directory object into that file
+5. Finally write back the "directory" that we've opened
+
+```cpp
+if(isDir) {
+    Directory* dir = new Directory(NumDirEntries);
+    OpenFile* subDirFile = new OpenFile(sector);
+    dir->WriteBack(subDirFile);
+    delete dir;
+    delete subDirFile;
+}
+directory->WriteBack(dirFile);
+delete dirFile;
+```
+
+#### `FileSystem::Open`
+
+> Related operation: `-cp`
+
+In `Copy`, we'll open the "empty" file that we've just create and fill the content from the other file.
+
+This is simply use method I've mentioned [before](#positioning-the-file-sector-in-the-multi-level-directory) to replace simply fetch directory object from root directory file (`directoryFile`).
+
+```cpp
+directory = (Directory*)FindDir(name);
+FilePath filepath = pathParser(name);
+if (filepath.dirDepth > 0) {
+    name = filepath.base;
+}
+```
+
+#### `FileSystem::Remove`
+
+> Related operation: `-r`
+
+The modification is basically the same as `FileSystem::Open`. (get the directory object and the file basename)
+
+There is an additional thing that I'll determine whether it is a directory file by its file extension. If so then reject the deletion. (if you want to delete the directory, use [`FileSystem::RemoveDir`](#recursive-deletion) instead)
+
+I've define a macro to make checking direcotry file type more clear.
+
+```c
+#define IsDirFile(fileHdr) (!strcmp(fileHdr->getFileType(), DirFileExt)
+```
+
+#### `FileSystem::ListDir`
+
+> Related operation: `-ld`
+
+This is a additional funciton. Because the original `FileSystem::List` is simply list the root directory and takes no input argument.
+
+So I've made this function to show all the file/dir in a directory.
+
+```cpp
+//----------------------------------------------------------------------
+// FileSystem::ListDir
+// 	List all the files in the file system directory.
+//----------------------------------------------------------------------
+
+void
+FileSystem::ListDir(char* name)
+{
+    printf("List Directory: %s\n", name);
+    Directory *directory = (Directory*)FindDir(strcat(name, "/arbitrary"));
+    directory->List();
+    delete directory;
+}
+```
+
+#### Recursive deletion
+
+TBD
+
+#### Test the multi-level directory
+
+I've made the test script as `code/filesys/test/test_exercise_4.sh`
+
+This will generate the following structure
+
+* /
+  * folder/ (directory)
+    * test/ (directory)
+      * small (file)
+    * dir/ (directory)
+      * third/ (directory)
+    * big (file)
+
+List all of them. And then try to delete them respectively. Finally, delete the directory "folder" recursively.
+
+```sh
+#!/bin/sh
+# goto filesys/ in docker
+cd /nachos/nachos-3.4/code/filesys
+
+# use -Q to disable verbose machine messages
+echo "=== format the DISK ==="
+./nachos -Q -f
+echo "=== create a directory called \"folder\""
+./nachos -Q -d D -mkdir folder
+echo "=== create additional two directories called \"test\" \"dir\" in \"folder\""
+./nachos -Q -d D -mkdir folder/test
+./nachos -Q -d D -mkdir folder/dir
+echo "=== create another directory called \"third\" in \"dir/folder\""
+./nachos -Q -d D -mkdir folder/dir/third
+
+echo "=== copies file \"big\" to \"folder\" ==="
+./nachos -Q -cp test/big folder/big
+echo "=== copies file \"small\" to \"folder/test\" ==="
+./nachos -Q -cp test/small folder/test/small
+
+echo "=== list each folder ==="
+./nachos -Q -l
+./nachos -Q -ld folder
+./nachos -Q -ld folder/test
+./nachos -Q -ld folder/dir
+./nachos -Q -ld folder/dir/third
+echo "=== prints the contents of the entire file system ==="
+./nachos -Q -D
+
+echo "=== test delete folder with \"-r\" which should fail"
+./nachos -Q -d D -r folder
+echo "=== remove the file \"folder/test/small\" using recursive delete ==="
+./nachos -Q -rd folder/test/small
+echo "=== remove the directory \"test\" (empty directory) ==="
+./nachos -Q -rd folder/test
+echo "=== remove the directory \"folder\" recursively (non-empty directory) ==="
+./nachos -Q -rd folder
+
+echo "=== list each folder again ==="
+./nachos -Q -l
+./nachos -Q -ld folder
+./nachos -Q -ld folder/test
+./nachos -Q -ld folder/dir
+./nachos -Q -ld folder/dir/third
+# echo "=== prints the contents of the entire file system again ==="
+# ./nachos -Q -D
+```
+
+Here is part of the output:
+
+```txt
+=== format the DISK ===
+=== create a directory called "folder"
+Making directory: folder
+=== create additional two directories called "test" "dir" in "folder"
+Making directory: folder/test
+Finding directory "folder" in sector "1"
+Making directory: folder/dir
+Finding directory "folder" in sector "1"
+=== create another directory called "third" in "dir/folder"
+Making directory: folder/dir/third
+Finding directory "folder" in sector "1"
+Finding directory "dir" in sector "11"
+=== copies file "big" to "folder" ===
+=== copies file "small" to "folder/test" ===
+=== list each folder ===
+folder
+List Directory: folder
+test
+dir
+big
+List Directory: folder/test
+small
+List Directory: folder/dir
+third
+List Directory: folder/dir/third
+
+...
+
+=== remove the file "folder/test/small" using recursive delete ===
+=== remove the directory "test" (empty directory) ===
+=== remove the directory "folder" recursively (non-empty directory) ===
+
+=== list each folder again ===
+List Directory: folder
+List Directory: folder/test
+List Directory: folder/dir
+List Directory: folder/dir/third
+```
+
+The folders are empty means we've successfully deleted them.
+
 ### Exercise 5: Dynamic allocate file length
 
 > Modify the *create* and the *write* file operation to match the requirement.
@@ -1431,10 +1878,44 @@ struct tm {
 
 ### The time in docker container is not equal to system time
 
+### Parsing directory and file name from a path
+
+* [How to get the directory path and file name from a absolute path in C on Linux](https://www.systutorials.com/241216/how-to-get-the-directory-path-and-file-name-from-a-absolute-path-in-c-on-linux/)
+
+```c
+#include <libgen.h> // dirname, basename
+#include <string.h> // strdup
+
+char* local_file = "/foo/bar/baz.txt";
+
+char* ts1 = strdup(local_file);
+char* ts2 = strdup(local_file);
+
+char* dir = dirname(ts1);
+char* filename = basename(ts2);
+
+// use dir and filename now
+// dir: "/foo/bar"
+// filename: "baz.txt"
+```
+
+| path       | dirname | basename |
+| ---------- | ------- | -------- |
+| "/usr/lib" | "/usr"  | "lib"    |
+| "/usr/"    | "/"     | "usr"    |
+| "usr"      | "."     | "usr"    |
+| "/"        | "/"     | "/"      |
+| "."        | "."     | "."      |
+| ".."       | "."     | ".."     |
+
+* [basename(3) - Linux man page](https://linux.die.net/man/3/basename): basename, dirname - parse pathname components
+
 ## TODO
 
 * [ ] Fill up more detail in Exercise 1
 * [ ] Maybe I can smalller the size of storing time in FileHeader (just store `time_t`?!)
+* [ ] [Recursive delete](#recursive-deletion) (remove direcotry) (this is important)
+* [ ] Maybe in multi-level directory we'll need to add "." and ".." in a directory file?! (this is a little bit more important)
 
 ## Resources
 
