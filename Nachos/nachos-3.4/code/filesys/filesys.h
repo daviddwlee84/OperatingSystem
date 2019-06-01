@@ -38,6 +38,8 @@
 #include "copyright.h"
 #include "openfile.h"
 
+#define DirFileExt "DirF"
+
 #ifdef FILESYS_STUB 		// Temporarily implement file system calls as 
 				// calls to UNIX, until the real file system
 				// implementation is available
@@ -84,6 +86,14 @@ class FileSystem {
     void List();			// List all the files in the file system
 
     void Print();			// List all the files and their contents
+
+#ifdef MULTI_LEVEL_DIR
+    // Lab5: Multi-level Directory
+    void* FindDir(char *filePath); // Return the directory the file locate at (the return format is Directory*)
+		int FindDirSector(char *filePath); // Return the sector of the file's directory
+    bool RemoveDir(char *name);  		// Delete a file (UNIX unlink)
+		void ListDir(char *name);
+#endif
 
   private:
    OpenFile* freeMapFile;		// Bit map of free disk blocks,
