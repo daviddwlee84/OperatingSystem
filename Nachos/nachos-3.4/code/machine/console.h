@@ -72,4 +72,37 @@ class Console {
 					// Otherwise contains EOF.
 };
 
+/**********************************************************************/
+/********************** Lab5: Synchronous Console *********************/
+/**********************************************************************/
+
+#include "synch.h"
+
+// (Refer to the implementation of SynchDisk from Disk.)
+
+class SynchConsole {
+  public:
+    SynchConsole(char *readFile, char *writeFile); // initialize the hardware console device
+    ~SynchConsole();                               // clean up console emulation
+
+// external interface -- Nachos kernel code can call these
+    void PutChar(char ch); // Write "ch" to the console display,
+                           // and return immediately.  "writeHandler"
+                           // is called when the I/O completes.
+    char GetChar(); // Poll the console input.  If a char is
+                    // available, return it.  Otherwise, return EOF.
+                    // "readHandler" is called whenever there is
+                    // a char to be gotten
+
+// internal emulation routines -- DO NOT call these.
+    void WriteDone(); // internal routines to signal I/O completion
+    void ReadAvail();
+
+private:
+    Console *console;
+    Lock *lock;
+    Semaphore *semaphoreReadAvail;
+    Semaphore *semaphoreWriteDone;
+};
+
 #endif // CONSOLE_H

@@ -85,6 +85,33 @@ ConsoleTest (char *in, char *out)
 }
 
 /**********************************************************************/
+/********************** Lab5: Synchronous Console *********************/
+/**********************************************************************/
+
+static SynchConsole *synchConsole;
+
+//----------------------------------------------------------------------
+// SynchConsoleTest
+// 	Test the synchronous console by echoing characters typed at the input
+//	onto the output.  Stop when the user types a 'q'.
+//----------------------------------------------------------------------
+
+void 
+SynchConsoleTest (char *in, char *out)
+{
+    char ch;
+
+    synchConsole = new SynchConsole(in, out);
+
+    for (;;) {
+        ch = synchConsole->GetChar();
+        synchConsole->PutChar(ch); // echo it!
+        if (ch == 'q')
+            return; // if q, quit
+    }
+}
+
+/**********************************************************************/
 /************************* Lab4: Multi-thread *************************/
 /**********************************************************************/
 

@@ -148,3 +148,104 @@ Console::PutChar(char ch)
     interrupt->Schedule(ConsoleWriteDone, (int)this, ConsoleTime,
 					ConsoleWriteInt);
 }
+
+/**********************************************************************/
+/********************** Lab5: Synchronous Console *********************/
+/**********************************************************************/
+
+// (Refer to the implementation of SynchDisk from Disk.)
+
+// Dummy functions because C++ is weird about pointers to member functions
+static void SynchConsoleReadAvail(int sc)
+{ SynchConsole *console = (SynchConsole *)sc; console->ReadAvail(); }
+static void SynchConsoleWriteDone(int sc)
+{ SynchConsole *console = (SynchConsole *)sc; console->WriteDone(); }
+
+//----------------------------------------------------------------------
+// SynchConsole::SynchConsole
+// 	Initialize the simulation of a hardware console device.
+//
+//	"readFile" -- UNIX file simulating the keyboard (NULL -> use stdin)
+//	"writeFile" -- UNIX file simulating the display (NULL -> use stdout)
+// 	"readAvail" is the interrupt handler called when a character arrives
+//		from the keyboard
+// 	"writeDone" is the interrupt handler called when a character has
+//		been output, so that it is ok to request the next char be
+//		output
+//----------------------------------------------------------------------
+
+SynchConsole::SynchConsole(char *readFile, char *writeFile)
+{
+    lock = new Lock("synch console");
+    semaphoreReadAvail = new Semaphore("synch console read avail", 0);
+    semaphoreWriteDone = new Semaphore("synch console write done", 0);
+    console = new Console(readFile, writeFile, SynchConsoleReadAvail, SynchConsoleWriteDone, (int)this);
+}
+
+//----------------------------------------------------------------------
+// SynchConsole::~SynchConsole
+// 	Clean up console emulation
+//----------------------------------------------------------------------
+
+SynchConsole::~SynchConsole()
+{
+    delete console;
+    delete lock;
+    delete semaphoreReadAvail;
+    delete semaphoreWriteDone;
+}
+
+//----------------------------------------------------------------------
+// SynchConsole::PutChar()
+// 	Write a character to the simulated display, schedule an interrupt 
+//	to occur in the future, and return.
+//----------------------------------------------------------------------
+
+void
+SynchConsole::PutChar(char ch)
+{
+    lock->Acquire();
+    console->PutChar(ch);
+    semaphoreWriteDone->P();
+    lock->Release();
+}
+
+//----------------------------------------------------------------------
+// SynchConsole::GetChar()
+// 	Read a character from the input buffer, if there is any there.
+//	Either return the character, or EOF if none buffered.
+//----------------------------------------------------------------------
+
+char
+SynchConsole::GetChar()
+{
+    lock->Acquire();
+    semaphoreReadAvail->P();
+    char ch = console->GetChar();
+    lock->Release();
+    return ch;
+}
+
+//----------------------------------------------------------------------
+// SynchConsole::WriteDone()
+// 	Internal routine called when it is time to invoke the interrupt
+//	handler to tell the Nachos kernel that the output character has
+//	completed.
+//----------------------------------------------------------------------
+
+void
+SynchConsole::WriteDone()
+{
+    semaphoreWriteDone->V();
+}
+
+//----------------------------------------------------------------------
+// SynchConsole::ReadAvail()
+// 	
+//----------------------------------------------------------------------
+
+void
+SynchConsole::ReadAvail()
+{
+    semaphoreReadAvail->V();
+}
