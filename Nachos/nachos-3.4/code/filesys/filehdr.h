@@ -93,6 +93,9 @@ class FileHeader {
     int getHeaderSector() { return headerSector; }
     // void setFilePath(char* path) { strcpy(filePath, path); } // uncomment when we need it
 
+    // Lab5: expand file size
+    bool ExpandFileSize(BitMap *freeMap, int additionalBytes);
+
   private:
 	/*
 		Hint from the web:

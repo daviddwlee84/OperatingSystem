@@ -54,7 +54,7 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
             dataSectors[i] = freeMap->Find();
     } else {
 #ifndef INDIRECT_MAP
-        ASSERT_MSG(FALSE, "File exceeded the maximum representation of the direct map");
+        ASSERT_MSG(FALSE, "File size exceeded the maximum representation of the direct map");
 #else
         if (numSectors < (NumDirect + LevelMapNum)) {
             DEBUG('f', COLORED(OKGREEN, "Allocating using single indirect indexing\n"));
@@ -95,7 +95,7 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
             }
             synchDisk->WriteSector(dataSectors[DoubleIndirectSectorIdx], (char*)doubleIndirectIndex);
         } else {
-            ASSERT_MSG(FALSE, "File exceeded the maximum representation of the direct map");
+            ASSERT_MSG(FALSE, "File size exceeded the maximum representation of the double indirect mapping");
         }
 #endif
     }
@@ -337,6 +337,51 @@ FileHeader::HeaderCreateInit(char* ext)
     setCreateTime(currentTimeString);
     setModifyTime(currentTimeString);
     setVisitTime(currentTimeString);
+}
+
+// Lab5: dynamic allocate file size
+
+//----------------------------------------------------------------------
+// FileHeader::ExpandFileSize
+// 	Reallocate the file size for additionalBytes
+//----------------------------------------------------------------------
+
+bool
+FileHeader::ExpandFileSize(BitMap *freeMap, int additionalBytes)
+{
+    ASSERT(additionalBytes > 0);
+    numBytes += additionalBytes;
+    int initSector = numSectors;
+    numSectors = divRoundUp(numBytes, SectorSize);
+    if (initSector == numSectors) {
+        return TRUE; // no need more sector
+    }
+    int sectorsToExpand = numSectors - initSector;
+    if (freeMap->NumClear() < sectorsToExpand) {
+        return FALSE; // no more space to allocate
+    }
+
+    DEBUG('f', COLORED(OKGREEN, "Expanding file size for %d sectors (%d bytes)\n"), sectorsToExpand, additionalBytes);
+
+    if (numSectors < NumDirect) { // just like FileHeader::Allocate
+        for (int i = initSector; i < numSectors; i++)
+            dataSectors[i] = freeMap->Find();
+    } else {
+#ifndef INDIRECT_MAP
+        ASSERT_MSG(FALSE, "File size exceeded the maximum representation of the direct map");
+#else
+
+// TODO: Expand file size in indirect mapping mode
+
+        if (numSectors < (NumDirect + LevelMapNum)) {
+        } else if (numSectors < (NumDirect + LevelMapNum + LevelMapNum*LevelMapNum)) {
+        } else {
+            ASSERT_MSG(FALSE, "File size exceeded the maximum representation of the double indirect mapping");
+        }
+#endif
+    }
+
+    return TRUE;
 }
 
 // Lab5: Helper Functions

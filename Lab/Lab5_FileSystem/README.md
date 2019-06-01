@@ -1802,6 +1802,167 @@ The folders are empty means we've successfully deleted them.
 
 > Modify the *create* and the *write* file operation to match the requirement.
 
+The naive thought of dynamic allocation file size is just keep the initial file size as the same way. But when a file need more space, then we allocate more space to it.
+
+There is no need to modify the "create" operation since we can re-allocate it later.
+
+I'll use the `-t` to trigger the `PerformanceTest` which is define in `code/filesys/fstest.cc`. This test function will keep writing the `Contents` (`"1234567890"`) for 5000 times. Then read it and finally delete it.
+
+Here is the original version output of Nachos running this test
+
+```sh
+$ docker run -it nachos_filesys nachos/nachos-3.4/code/filesys/nachos -d f -t
+Initializing the file system.
+Starting file system performance test:
+Ticks: total 1070, idle 1000, system 70, user 0
+Disk I/O: reads 2, writes 0
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 0, sent 0
+Sequential write of 50000 byte file, in 10 byte chunks
+Creating file TestFile, size 0
+Allocating using direct indexing only
+Opening file TestFile
+Perf test: unable to open TestFile
+Sequential read of 50000 byte file, in 10 byte chunks
+Opening file TestFile
+Perf test: unable to open file TestFile
+Perf test: unable to remove TestFile
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+
+Ticks: total 33020, idle 32860, system 160, user 0
+Disk I/O: reads 3, writes 2
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 0, sent 0
+
+Cleaning up...
+```
+
+We can see it cannot open the `TestFile` with size 0.
+
+> Because in current version I haven't support indirect mapping for dynamic allocate file size, so make sure remove the `INDIRECT_MAP` macro in `Makefile`. (this test script won't exceed the original `NumDirect` size)
+
+#### Resize the file (Allocate new space)
+
+Recall that the "file size manager" is the file's file header. In the `FileHeader`, it has two private variables, `numBytes` and `numSectors`. Se we just need to update the value of them.
+
+I've made a function called `ExpandFileSize` in `code/filesys/filehdr.h` and `code/filesys/filehdr.cc`
+
+```cpp
+//----------------------------------------------------------------------
+// FileHeader::ExpandFileSize
+// 	Reallocate the file size for additionalBytes
+//----------------------------------------------------------------------
+
+bool
+FileHeader::ExpandFileSize(BitMap *freeMap, int additionalBytes)
+{
+    ASSERT(additionalBytes > 0);
+    numBytes += additionalBytes;
+    int initSector = numSectors;
+    numSectors = divRoundUp(numBytes, SectorSize);
+    if (initSector == numSectors) {
+        return TRUE; // no need more sector
+    }
+    int sectorsToExpand = numSectors - initSector;
+    if (freeMap->NumClear() < sectorsToExpand) {
+        return FALSE; // no more space to allocate
+    }
+
+    DEBUG('f', COLORED(OKGREEN, "Expanding file size for %d sectors (%d bytes)\n"), sectorsToExpand, additionalBytes);
+
+    if (numSectors < NumDirect) { // just like FileHeader::Allocate
+        for (int i = initSector; i < numSectors; i++)
+            dataSectors[i] = freeMap->Find();
+    } else {
+        ASSERT_MSG(FALSE, "File size exceeded the maximum representation of the direct map");
+    }
+    return TRUE;
+}
+```
+
+#### Resize the file when the space is not enough
+
+This situation happens when "writing". So I've modify the `OpenFile::WriteAt` in `code/filesys/openfile.cc`. When we want to write a `position` with `numBytes` first check if the space is enough. If not, then resize the file header and update the fileLength.
+
+```cpp
+int
+OpenFile::WriteAt(char *from, int numBytes, int position)
+{
+    int fileLength = hdr->FileLength();
+
+    ...
+
+    // Lab5: dynamic allocate file size
+    if (position + numBytes > fileLength) {
+        BitMap *freeMap = new BitMap(NumSectors);
+        OpenFile* freeMapFile = new OpenFile(FreeMapSector);
+        freeMap->FetchFrom(freeMapFile);
+        hdr->ExpandFileSize(freeMap, position + numBytes - fileLength);
+        hdr->WriteBack(hdr->getHeaderSector());
+        freeMap->WriteBack(freeMapFile);
+        delete freeMapFile;
+        fileLength = hdr->FileLength();
+    }
+
+    ...
+}
+```
+
+#### Result of the PerformanceTest
+
+Run the performance test again and we can see there are some "Expanding" operation in this process.
+
+```txt
+$ docker run -it nachos_filesys nachos/nachos-3.4/code/filesys/nachos -d f -t
+Initializing the file system.
+Starting file system performance test:
+Ticks: total 1070, idle 1000, system 70, user 0
+Disk I/O: reads 2, writes 0
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 0, sent 0
+Sequential write of 50000 byte file, in 10 byte chunks
+Creating file TestFile, size 0
+Allocating using direct indexing only
+Expanding file size for 7 sectors (880 bytes)
+Expanding file size for 1 sectors (128 bytes)
+Reading 128 bytes at 0, from file of length 128.
+Expanding file size for 1 sectors (128 bytes)
+Writing 128 bytes at 0, from file of length 128.
+Writing 128 bytes at 0, from file of length 128.
+Writing 128 bytes at 0, from file of length 128.
+Writing 880 bytes at 0, from file of length 880.
+Reading 112 bytes at 768, from file of length 880.
+Reading 1 bytes at 0, from file of length 1.
+Expanding file size for 1 sectors (128 bytes)
+Reading 128 bytes at 0, from file of length 128.
+Expanding file size for 1 sectors (127 bytes)
+Writing 128 bytes at 0, from file of length 128.
+Writing 128 bytes at 0, from file of length 128.
+Writing 128 bytes at 0, from file of length 128.
+Opening file TestFile
+Perf test: unable to open TestFile
+Sequential read of 50000 byte file, in 10 byte chunks
+Opening file TestFile
+Perf test: unable to open file TestFile
+Perf test: unable to remove TestFile
+No threads ready or runnable, and no pending interrupts.
+Assuming the program completed.
+Machine halting!
+
+Ticks: total 401020, idle 399900, system 1120, user 0
+Disk I/O: reads 12, writes 25
+Console I/O: reads 0, writes 0
+Paging: faults 0
+Network I/O: packets received 0, sent 0
+
+Cleaning up...
+```
+
 ## II. Synchronization and Mutual Exclusion of File Access
 
 ### Exercise 6: Trace code (implementation of asynchronous access)
@@ -1917,6 +2078,7 @@ char* filename = basename(ts2);
 * [ ] [Recursive delete](#recursive-deletion) (remove direcotry) (this is important) (modified `code/filesys/directory.h`)
   * [SergioShen/Nachos commit: Directory::RecursivelyRemove](https://github.com/SergioShen/Nachos/commit/1926d3bb42ffdd263a680a491769946b4a34df6e#diff-7717f6853cf778bcfe9d1395a9b24e2eR281)
 * [ ] Maybe in multi-level directory we'll need to add "." and ".." in a directory file?! (this is a little bit more important)
+* [ ] Indirect mapping for [dynamic allocate file length](#exercise-5-dynamic-allocate-file-length)
 
 ## Resources
 
@@ -1935,6 +2097,9 @@ char* filename = basename(ts2);
 
 * [nachos Lab5實習報告](https://wenku.baidu.com/view/04382358f6ec4afe04a1b0717fd5360cbb1a8d40.html)
 * [SergioShen/Nachos commit: Finish lab5 challenge2: Pipe](https://github.com/SergioShen/Nachos/commit/8847d45bee77aaaf4f50c644d12e71938f416bd3)
+* SergioShen/Nachos for Exercise 5
+  * [FileSystem::Reallocate](https://github.com/SergioShen/Nachos/blob/latest/code/filesys/filesys.cc#L384)
+  * [FileHeader::Reallocate](https://github.com/SergioShen/Nachos/blob/latest/code/filesys/filehdr.cc#L68)
 
 Other
 
