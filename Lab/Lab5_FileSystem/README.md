@@ -266,7 +266,7 @@ The first sector is define in `code/filesys/filesys.cc`.
 
 TBD
 
-#### Synchronize Disk
+#### Synchronized Disk
 
 > This is implemented in `code/filesys/synchdisk.h` and `code/filesys/synchdisk.cc`.
 >
@@ -279,7 +279,7 @@ In current Nachos, there are some constraint to limit the access of dick
 
 The `SynchDisk::ReadSector` and `SynchDisk::WriteSector` will return only once the data is actually read or written.
 
-> There will be a improvement of [asynchronized access in Exercise 6](#Exercise-6:-Trace-code-(implementation-of-asynchronous-access))
+> There will be a improvement of [asynchronized access in Exercise 6](#exercise-6-trace-code-implementation-of-synchronized-console)
 
 #### Free Space Management -- Bitmap
 
@@ -1965,7 +1965,7 @@ Cleaning up...
 
 ## II. Synchronization and Mutual Exclusion of File Access
 
-### Exercise 6: Trace code (implementation of asynchronous access)
+### Exercise 6: Trace code (implementation of synchronized console)
 
 > Read the asynchronous disk related code, understand how current Nachos asynchronous access disk.
 >
@@ -1973,6 +1973,246 @@ Cleaning up...
 > * `code/filesys/synchdisk.cc`
 >
 > Use this principle, implement `Class SynchConsole` based on `Class Console`
+
+The previous notes about [SyncDick](#synchronized-disk)
+
+#### How Disk Synch modifiy the Disk
+
+The Disk simulation of Nachos is asynchronous, that is when we sending the "request" to Disk the Disk will return immediately. When the job is complete (`DiskDone`), Disk then trigger the interrupt.
+
+But in the multi-thread scenaro this is hard to maintain. So here comes the `SynchDisk`. It is based on the `Disk` and guarantees the following condition:
+
+* Only one thread can access Disk at a time
+* The thread will wait until the request is finished
+
+To implement this, it use a lock and a semaphore
+
+* Lock: (Only one read/write request can be sent to the disk at a time)
+  * a thread can access the disk only when it own this lock
+* Semaphore (and disk I/O interrupt): (To synchronize requesting thread with the interrupt handler)
+  * when requesting the Disk, the thread will be blocked (sleep) by `semaphore->P()`
+  * when request done, it will then wake the thead up by `semaphore->V()`
+
+#### Original Console
+
+The original version of console is defined in `code/machine/console.h` and `code/machine/console.cc`
+
+And the original `ConsoleTest` in `code/userprog/progtest.cc` can be trigger by `-c` and is defined as
+
+```cpp
+// Data structures needed for the console test.  Threads making
+// I/O requests wait on a Semaphore to delay until the I/O completes.
+
+static Console *console;
+static Semaphore *readAvail;
+static Semaphore *writeDone;
+
+//----------------------------------------------------------------------
+// ConsoleInterruptHandlers
+// 	Wake up the thread that requested the I/O.
+//----------------------------------------------------------------------
+
+static void ReadAvail(int arg) { readAvail->V(); }
+static void WriteDone(int arg) { writeDone->V(); }
+
+//----------------------------------------------------------------------
+// ConsoleTest
+// 	Test the console by echoing characters typed at the input onto
+//	the output.  Stop when the user types a 'q'.
+//----------------------------------------------------------------------
+
+void 
+ConsoleTest (char *in, char *out)
+{
+    char ch;
+
+    console = new Console(in, out, ReadAvail, WriteDone, 0);
+    readAvail = new Semaphore("read avail", 0);
+    writeDone = new Semaphore("write done", 0);
+    
+    for (;;) {
+	readAvail->P();		// wait for character to arrive
+	ch = console->GetChar();
+	console->PutChar(ch);	// echo it!
+	writeDone->P() ;        // wait for write to finish
+	if (ch == 'q') return;  // if q, quit
+    }
+}
+```
+
+We can see that it has use two semaphore to implement the test. That's the purpos of our `SynchConsole`.
+
+#### Make console synchronous
+
+I've define the following structure in `code/machine/console.h` (here need to `#include "synch.h"`)
+
+```cpp
+class SynchConsole {
+  public:
+    SynchConsole(char *readFile, char *writeFile); // initialize the hardware console device
+    ~SynchConsole();                               // clean up console emulation
+
+// external interface -- Nachos kernel code can call these
+    void PutChar(char ch); // Write "ch" to the console display,
+                           // and return immediately.  "writeHandler"
+                           // is called when the I/O completes.
+    char GetChar(); // Poll the console input.  If a char is
+                    // available, return it.  Otherwise, return EOF.
+                    // "readHandler" is called whenever there is
+                    // a char to be gotten
+
+// internal emulation routines -- DO NOT call these.
+    void WriteDone(); // internal routines to signal I/O completion
+    void ReadAvail();
+
+private:
+    Console *console;
+    Lock *lock;
+    Semaphore *semaphoreReadAvail;
+    Semaphore *semaphoreWriteDone;
+};
+```
+
+For the constructor and deconstructor is simply initial all the private variables and delete all of them, respectively.
+
+And we need to set two functions that can handle the interrupt and pass its function pointer to the `Console` when creating it.
+
+```cpp
+static void SynchConsoleReadAvail(int sc)
+{ SynchConsole *console = (SynchConsole *)sc; console->ReadAvail(); }
+static void SynchConsoleWriteDone(int sc)
+{ SynchConsole *console = (SynchConsole *)sc; console->WriteDone(); }
+
+SynchConsole::SynchConsole(char *readFile, char *writeFile)
+{
+    lock = new Lock("synch console");
+    semaphoreReadAvail = new Semaphore("synch console read avail", 0);
+    semaphoreWriteDone = new Semaphore("synch console write done", 0);
+    console = new Console(readFile, writeFile, SynchConsoleReadAvail, SynchConsoleWriteDone, (int)this);
+}
+
+SynchConsole::~SynchConsole()
+{
+    delete console;
+    delete lock;
+    delete semaphoreReadAvail;
+    delete semaphoreWriteDone;
+}
+```
+
+For the external and internal interface, we need to handle the "synchronous" things just like `SynchDisk` did.
+
+```cpp
+void
+SynchConsole::PutChar(char ch)
+{
+    lock->Acquire();
+    console->PutChar(ch);
+    semaphoreWriteDone->P();
+    lock->Release();
+}
+
+char
+SynchConsole::GetChar()
+{
+    lock->Acquire();
+    semaphoreReadAvail->P();
+    char ch = console->GetChar();
+    lock->Release();
+    return ch;
+}
+
+void
+SynchConsole::WriteDone()
+{
+    semaphoreWriteDone->V();
+}
+
+void
+SynchConsole::ReadAvail()
+{
+    semaphoreReadAvail->V();
+}
+
+```
+
+#### Test the Synchronous console
+
+I've add the `SynchConsoleTest` in `code/userprog/progtest.cc`. It is much more simple than the original one that we've seen.
+
+```cpp
+static SynchConsole *synchConsole;
+
+//----------------------------------------------------------------------
+// SynchConsoleTest
+// 	Test the synchronous console by echoing characters typed at the input
+//	onto the output.  Stop when the user types a 'q'.
+//----------------------------------------------------------------------
+
+void
+SynchConsoleTest (char *in, char *out)
+{
+    char ch;
+
+    synchConsole = new SynchConsole(in, out);
+
+    for (;;) {
+        ch = synchConsole->GetChar();
+        synchConsole->PutChar(ch); // echo it!
+        if (ch == 'q')
+            return; // if q, quit
+    }
+}
+```
+
+I've also add additional option `-sc` to triggle the `SynchConsoleTest` in `code/threads/main.cc` like this
+
+```cpp
+extern void SynchConsoleTest(char *in, char *out); // Lab5: Synchronous console
+
+int
+main(int argc, char **argv)
+{
+
+    ...
+
+#ifdef USER_PROGRAM
+    ...
+
+        } else if (!strcmp(*argv, "-sc")) { // test the synchronous console
+            if (argc == 1) {
+                SynchConsoleTest(NULL, NULL);
+            } else {
+                ASSERT(argc > 2);
+                SynchConsoleTest(*(argv + 1), *(argv + 2));
+                argCount = 3;
+            }
+            interrupt->Halt(); // once we start the console, then
+                               // Nachos will loop forever waiting
+                               // for console input
+        }
+#endif // USER_PROGRAM
+
+    ...
+```
+
+And here is the test and result (send `q` to quit the test)
+
+```txt
+$ docker run -it nachos_filesys nachos/nachos-3.4/code/filesys/nachos -sc
+synchronous console test
+synchronous console test
+q
+qMachine halting!
+
+Ticks: total 773473720, idle 773472090, system 1630, user 0
+Disk I/O: reads 2, writes 0
+Console I/O: reads 27, writes 26
+Paging: faults 0
+Network I/O: packets received 0, sent 0
+
+Cleaning up...
+```
 
 ### Exercise 7: Implement synchronization and mutual exclusion mechnism of the file system
 
@@ -2096,6 +2336,7 @@ char* filename = basename(ts2);
 ### Example
 
 * [nachos Lab5實習報告](https://wenku.baidu.com/view/04382358f6ec4afe04a1b0717fd5360cbb1a8d40.html)
+* [SergioShen/Nachos commit: Finish SynchConsole](https://github.com/SergioShen/Nachos/commit/3f923d56aab27f39d49f635351c7941680549e5c)
 * [SergioShen/Nachos commit: Finish lab5 challenge2: Pipe](https://github.com/SergioShen/Nachos/commit/8847d45bee77aaaf4f50c644d12e71938f416bd3)
 * SergioShen/Nachos for Exercise 5
   * [FileSystem::Reallocate](https://github.com/SergioShen/Nachos/blob/latest/code/filesys/filesys.cc#L384)
