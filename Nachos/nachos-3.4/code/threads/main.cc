@@ -64,6 +64,9 @@ extern void Print(char *file), PerformanceTest(void);
 extern void StartProcess(char *file), ConsoleTest(char *in, char *out);
 extern void StartTwoThread(char *filename); // Lab4: Multi-thread test
 extern void MailTest(int networkID);
+#ifdef MULTI_LEVEL_DIR
+extern void MakeDir(char *dirname); // Lab5: Multi-level directory
+#endif
 
 // External variable
 
@@ -147,17 +150,35 @@ main(int argc, char **argv)
             ASSERT(argc > 1);
             Print(*(argv + 1));
             argCount = 2;
-        } else if (!strcmp(*argv, "-r")) { // remove Nachos file
+        } else if (!strcmp(*argv, "-r")) { // remove Nachos file (i.e. rm in UNIX)
             ASSERT(argc > 1);
-            fileSystem->Remove(*(argv + 1));
+            bool success = fileSystem->Remove(*(argv + 1));
+            ASSERT_MSG(success, "Remove file fail!");
             argCount = 2;
-        } else if (!strcmp(*argv, "-l")) { // list Nachos directory
+        } else if (!strcmp(*argv, "-l")) { // list Nachos root directory
             fileSystem->List();
         } else if (!strcmp(*argv, "-D")) { // print entire filesystem
             fileSystem->Print();
         } else if (!strcmp(*argv, "-t")) { // performance test
             PerformanceTest();
         }
+#ifdef MULTI_LEVEL_DIR
+        // Lab5: Directory Operations
+        else if (!strcmp(*argv, "-mkdir")) { // make directory
+            ASSERT(argc > 1);
+            MakeDir(*(argv + 1));
+            argCount = 2;
+        } else if (!strcmp(*argv, "-rd")) { // remove Nachos file or directory recursively (i.e. rm -r in UNIX)
+            ASSERT(argc > 1);
+            bool success = fileSystem->RemoveDir(*(argv + 1));
+            ASSERT_MSG(success, "Remove directory fail!");
+            argCount = 2;
+        } else if (!strcmp(*argv, "-ld")) { // list Nachos directory
+            ASSERT(argc > 1);
+            fileSystem->ListDir(*(argv + 1));
+            argCount = 2;
+        }
+#endif // MULTI_LEVEL_DIR
 #endif // FILESYS
 #ifdef NETWORK
         if (!strcmp(*argv, "-o")) {
