@@ -1914,7 +1914,8 @@ char* filename = basename(ts2);
 
 * [ ] Fill up more detail in Exercise 1
 * [ ] Maybe I can smalller the size of storing time in FileHeader (just store `time_t`?!)
-* [ ] [Recursive delete](#recursive-deletion) (remove direcotry) (this is important)
+* [ ] [Recursive delete](#recursive-deletion) (remove direcotry) (this is important) (modified `code/filesys/directory.h`)
+  * [SergioShen/Nachos commit: Directory::RecursivelyRemove](https://github.com/SergioShen/Nachos/commit/1926d3bb42ffdd263a680a491769946b4a34df6e#diff-7717f6853cf778bcfe9d1395a9b24e2eR281)
 * [ ] Maybe in multi-level directory we'll need to add "." and ".." in a directory file?! (this is a little bit more important)
 
 ## Resources
@@ -1933,6 +1934,7 @@ char* filename = basename(ts2);
 ### Example
 
 * [nachos Lab5實習報告](https://wenku.baidu.com/view/04382358f6ec4afe04a1b0717fd5360cbb1a8d40.html)
+* [SergioShen/Nachos commit: Finish lab5 challenge2: Pipe](https://github.com/SergioShen/Nachos/commit/8847d45bee77aaaf4f50c644d12e71938f416bd3)
 
 Other
 

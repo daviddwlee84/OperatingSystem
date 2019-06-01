@@ -74,6 +74,10 @@ class Directory {
 					//  of the directory -- all the file
 					//  names and their contents.
 
+    // Lab5: Recursive delete (TODO)
+    int getTableSize() { return tableSize; };
+    DirectoryEntry* getTable() { return table; };
+
   private:
     int tableSize;			// Number of directory entries
     DirectoryEntry *table;		// Table of pairs: 
