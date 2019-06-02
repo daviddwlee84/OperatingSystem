@@ -1,5 +1,10 @@
 # Lab 6: System Call
 
+> In this Lab I'll use `./build_modified_nachos.sh` to build the docker container.
+> And I'll add user program in `code/test/` and use `code/userprog/nachos` to test.
+>
+> As usual, use `-d S` to show the system call debug message. And `-x executable` to run user program. 
+
 ## I. Understanding Nachos System Call
 
 In the [MIPS Instruction Reference](http://www.mrc.uidaho.edu/mrc/people/jff/digital/MIPSir.html), it describe the MIPS system call instruction.
@@ -156,6 +161,65 @@ ExceptionHandler(ExceptionType which)
 
 ## II. File System Related System Call
 
+I've left the API when doing Lab 4 in `code/userprog/exception.cc`.
+
+```cpp
+void
+ExceptionHandler(ExceptionType which)
+{
+    ...
+
+    // System Call
+    // The system call codes (SC_[TYPE]) is defined in userprog/syscall.h
+    // The system call stubs is defined in test/start.s
+    int type = machine->ReadRegister(2); // r2: the standard C calling convention on the MIPS
+
+    if (which == SyscallException) {
+        if (type == SC_Halt) {
+            DEBUG('a', "Shutdown, initiated by user program.\n");
+            PrintTLBStatus(); // TLB debug usage
+            interrupt->Halt();
+        } else if (type == SC_Exit || type == SC_Exec || type == SC_Join) {
+            // Address Space Control (Process Management) System Calls
+            AddressSpaceControlHandler(type);
+        } else if (type == SC_Create || type == SC_Open || type == SC_Write || type == SC_Read || type == SC_Close) {
+            // File System System Calls
+            FileSystemHandler(type);
+        } else if (type == SC_Fork || type == SC_Yield) {
+            // User-level Threads System Calls
+            UserLevelThreadsHandler(type);
+        }
+
+        // Increment the Program Counter before returning.
+        IncrementPCRegs();
+        return;
+    }
+}
+```
+
+For this part, I'll put the handler in `FileSystemHandler`.
+
+And because we need to advance the program counter after handling the system call. I've made this function and called after handling any syscall.
+
+```cpp
+//----------------------------------------------------------------------
+// IncrementPCRegs
+// 	Because when Nachos cause the exception. The PC won't increment
+//  (i.e. PC+4) in Machine::OneInstruction in machine/mipssim.cc.
+//  Thus, when invoking a system call, we need to advance the program
+//  counter. Or it will cause the infinity loop.
+//----------------------------------------------------------------------
+
+void IncrementPCRegs(void) {
+    // Debug usage
+    machine->WriteRegister(PrevPCReg, machine->ReadRegister(PCReg));
+
+    // Advance program counter
+    machine->WriteRegister(PCReg, machine->ReadRegister(NextPCReg));
+    machine->WriteRegister(NextPCReg, machine->ReadRegister(NextPCReg)+4);
+}
+```
+
 ### Exercise 2: Implement file system system call
 
 > On the analogy of the Halt implementation, complete the following system calls
@@ -168,19 +232,231 @@ ExceptionHandler(ExceptionType which)
 >
 > There are basic description of the system calls in `code/userprog/syscall.h`
 
-#### Create
+In `code/userprog/syscall.h`, the definition is as following
 
-#### Open
+```cpp
+/* File system operations: Create, Open, Read, Write, Close
+ * These functions are patterned after UNIX -- files represent
+ * both files *and* hardware I/O devices.
+ *
+ * If this assignment is done before doing the file system assignment,
+ * note that the Nachos file system has a stub implementation, which
+ * will work for the purposes of testing out these routines.
+ */
+ 
+/* A unique identifier for an open Nachos file. */
+typedef int OpenFileId;
 
-#### Read
+/* when an address space starts up, it has two open files, representing 
+ * keyboard input and display output (in UNIX terms, stdin and stdout).
+ * Read and Write can be used directly on these, without first opening
+ * the console device.
+ */
 
-#### Write
+#define ConsoleInput	0  
+#define ConsoleOutput	1 
+```
+
+And the operations
+
+```cpp
+/* Create a Nachos file, with "name" */
+void Create(char *name);
+
+/* Open the Nachos file "name", and return an "OpenFileId" that can 
+ * be used to read and write to the file.
+ */
+OpenFileId Open(char *name);
+
+/* Write "size" bytes from "buffer" to the open file. */
+void Write(char *buffer, int size, OpenFileId id);
+
+/* Read "size" bytes from the open file into "buffer".  
+ * Return the number of bytes actually read -- if the open file isn't
+ * long enough, or if it is an I/O device, and there aren't enough 
+ * characters to read, return whatever is available (for I/O devices, 
+ * you should always wait until you can return at least one character).
+ */
+int Read(char *buffer, int size, OpenFileId id);
+
+/* Close the file, we're done reading and writing to it. */
+void Close(OpenFileId id);
+```
+
+#### Create and Open
+
+Because these two functions needs to get the file name by reading memory.
+
+So I've made this read file name helper function.
+
+```cpp
+// Helper function to get file name using ReadMem for Create and Open syscall
+char* getFileNameFromAddress(int address) {
+    int position = 0;
+    int data;
+    char name[FileNameMaxLength + 1];
+    do {
+        // each time read one byte
+        bool success = machine->ReadMem(address + position, 1, &data);
+        ASSERT_MSG(success, "Fail to read memory in Create syscall");
+        name[position++] = (char)data;
+
+        ASSERT_MSG(position <= FileNameMaxLength, "Filename length too long")
+    } while(data != '\0');
+    name[position] = '\0';
+    return name;
+}
+```
+
+And here is the `Create` syscall (type `SC_Create`)
+
+```cpp
+int address = machine->ReadRegister(4); // memory starting position
+DEBUG('S', COLORED(GREEN, "Received Create syscall (r4 = %d): "), address);
+char* name = getFileNameFromAddress(address);
+
+bool success = fileSystem->Create(name, 0); // initial file length set 0
+
+DEBUG('S', success ? COLORED(GREEN, "File \"%s\" created.\n") : COLORED(FAIL, "File \"%s\" fail to create.\n"), name);
+```
+
+Here is the `Open` syscall (type `SC_Close`)
+
+```cpp
+int address = machine->ReadRegister(4); // memory starting position
+DEBUG('S', COLORED(GREEN, "Received Open syscall (r4 = %d): "), address);
+char* name = getFileNameFromAddress(address);
+
+OpenFile *openFile = fileSystem->Open(name);
+
+DEBUG('S', COLORED(GREEN, "File \"%s\" opened.\n"), name);
+machine->WriteRegister(2, (OpenFileId)openFile); // return result
+```
 
 #### Close
+
+Closing the file is simply de-allocate the open file pointer.
+
+Here is the `Close` syscall (type `SC_Close`)
+
+```cpp
+OpenFileId id = machine->ReadRegister(4); // OpenFile object id
+DEBUG('S', COLORED(GREEN, "Received Close syscall (r4 = %d): "), id);
+
+OpenFile* openFile = (OpenFile*)id; // transfer id back to OpenFile
+delete openFile; // release the file
+
+DEBUG('S', COLORED(GREEN, "File has closed.\n"));
+```
+
+#### Read and Write
+
+This part is more complicated, because we need to read and write the buffer one by one byte. And handle the "data type transform" problem
+
+Here is the `Read` syscall (type `SC_Read`)
+
+```cpp
+int address = machine->ReadRegister(4); // memory starting position
+int size = machine->ReadRegister(5); // read "size" bytes
+OpenFileId id = machine->ReadRegister(6); // OpenFile object id
+DEBUG('S', COLORED(GREEN, "Received Read syscall (r4 = %d, r5 = %d, r6 = %d): "), address, size, id);
+
+OpenFile* openFile = (OpenFile*)id; // transfer id back to OpenFile
+char* buffer = new char[size];
+int numBytes = openFile->Read(buffer, size);
+for (int i = 0; i < numBytes; i++) { // each time write one byte
+    bool success = machine->WriteMem(address + i, 1, (int)buffer[i]);
+    if (!success) {
+        i--;
+    }
+}
+DEBUG('S', COLORED(GREEN, "Read %d bytes into buffer.\n"), numBytes);
+machine->WriteRegister(2, numBytes); // Return the number of bytes actually read
+```
+
+Finally, here is the `Write` syscall (type `SC_Write`)
+
+```cpp
+int address = machine->ReadRegister(4); // memory starting position
+int size = machine->ReadRegister(5); // read "size" bytes
+OpenFileId id = machine->ReadRegister(6); // OpenFile object id
+DEBUG('S', COLORED(GREEN, "Received Write syscall (r4 = %d, r5 = %d, r6 = %d): "), address, size, id);
+
+char* buffer = new char[size];
+for (int i = 0; i < size; i++) { // each time write one byte
+    bool success = machine->ReadMem(address + i, 1, (int*)&buffer[i]);
+    if (!success) {
+        i--;
+    }
+}
+OpenFile* openFile = (OpenFile*)id; // transfer id back to OpenFile
+int numBytes = openFile->Write(buffer, size);
+
+DEBUG('S', COLORED(GREEN, "Write %d bytes into file.\n"), numBytes);
+machine->WriteRegister(2, numBytes); // Return the number of bytes actually write
+```
 
 ### Exercise 3: Test with user program
 
 > Write user program and invoke the system calls implemented in the Exercise 2 and test the correctness.
+
+I've made the user program `code/test/filesyscall.c` which will create a file call "test.txt" then write string and then read from it. Finally use the exit state to show how many bytes it has read.
+
+```c
+/* filesyscall.c
+ *	Simple program to test file system syscall (Lab 6)
+ */
+
+#include "syscall.h"
+
+#define BUFFER_SIZE 11
+
+int main() {
+    char data[9]; // as file name and content
+    char buffer[9];
+    OpenFileId fid_write;
+    OpenFileId fid_read;
+    int numBytes;
+
+    data[0] = 't';
+    data[1] = 'e';
+    data[2] = 's';
+    data[3] = 't';
+    data[4] = '.';
+    data[5] = 't';
+    data[6] = 'x';
+    data[7] = 't';
+    data[8] = '\0';
+
+    Create(data);
+
+    fid_write = Open(data);
+    fid_read = Open(data);
+
+    Write(data, 8, fid_write);
+
+    numBytes = Read(buffer, 8, fid_read);
+
+    Close(fid_write);
+    Close(fid_read);
+
+    Exit(numBytes);
+}
+```
+
+```txt
+$ docker run -it nachos nachos/nachos-3.4/code/userprog/nachos -d S -x nachos/nachos-3.4/code/test/filesyscall
+Received Create syscall (r4 = 1464): File "test.txt" created.
+Received Open syscall (r4 = 1464): File "test.txt" opened.
+Received Open syscall (r4 = 1464): File "test.txt" opened.
+Received Write syscall (r4 = 1464, r5 = 8, r6 = 151082128): Write 8 bytes into file.
+Received Read syscall (r4 = 1480, r5 = 8, r6 = 151082144): Read 8 bytes into buffer.
+Received Close syscall (r4 = 151082128): File has closed.
+Received Close syscall (r4 = 151082144): File has closed.
+User program exit with status 8
+```
+
+And it will generate the "test.txt" file in docker under `code/userprog`.
 
 ## III. Executing User Program Related system call
 
@@ -224,6 +500,17 @@ Here is the following procedure that a Exit syscall need to do
 
 ![Nachos Exec/Exit/Join Example](https://www2.cs.duke.edu/courses/cps110/spring00/slides/proc-ux/img005.gif)
 
+## Reminder
+
+* I'm not sure the filesys syscall test should use `code/filesys/nachos` or `code/userprog/nachos`.
+  * Using the first one will cause "Unable to open file ..." error
+  * Using the second one, because the `code/userprog/Makefile` use `FILESYS_STUB`, not sure if it is legal, but it will enter the exception handler, so not quite sure.
+
+TODO
+
+* [ ] Maybe print something when `Read` and `Write`
+* [ ] Check if the `if (!success) i--;` is necessary in `Read` and `Write`.
+
 ## Resources
 
 CSC546 - Operating Systems
@@ -259,6 +546,9 @@ CSC546 - Operating Systems
 ### Example
 
 * [nachos-Lab6實習報告](https://wenku.baidu.com/view/bd03f40ee97101f69e3143323968011ca300f71e.html)
+* [SergioShen/Nachos comment: Finish lab6 exercise3: Syscall: Create, Open, Close, Write, Read](https://github.com/SergioShen/Nachos/commit/7343b11284c10b0ed22aca9200d91c1e66e15a36)
+* [SergioShen/Nachos comment: Finish lab6](https://github.com/SergioShen/Nachos/commit/3015618577c3b4b4f1b441f9e18b0f42f4f4851c)
+* [SergioShen/Nachos exception.cc](https://github.com/SergioShen/Nachos/blob/latest/code/userprog/exception.cc)
 
 Others
 
