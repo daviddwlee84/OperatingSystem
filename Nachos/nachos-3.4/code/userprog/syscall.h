@@ -130,6 +130,7 @@ void Yield();
 /**********************************************************************/
 
 void IncrementPCRegs(void); // Advance the program counter
+char* getFileNameFromAddress(int address); // helper function for Create, Open
 
 void AddressSpaceControlHandler(int type); // Exit, Exec, Join
 void FileSystemHandler(int type); // Create, Open, Write, Read, Close
