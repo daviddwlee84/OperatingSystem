@@ -35,7 +35,7 @@ CPP = gcc -E
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR)
 
-all: halt shell matmult sort fibonacci exit filesyscall
+all: halt shell matmult sort fibonacci exit filesyscall execjoin forkyield
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.c > strt.s
@@ -86,3 +86,17 @@ filesyscall.o: filesyscall.c
 filesyscall: filesyscall.o start.o
 	$(LD) $(LDFLAGS) start.o filesyscall.o -o filesyscall.coff
 	../bin/coff2noff filesyscall.coff filesyscall
+
+# For Lab5: Test address space control operations syscall
+execjoin.o: execjoin.c
+	$(CC) $(CFLAGS) -c execjoin.c
+execjoin: execjoin.o start.o
+	$(LD) $(LDFLAGS) start.o execjoin.o -o execjoin.coff
+	../bin/coff2noff execjoin.coff execjoin
+
+# For Lab5: Test user-level thread operations syscall
+forkyield.o: forkyield.c
+	$(CC) $(CFLAGS) -c forkyield.c
+forkyield: forkyield.o start.o
+	$(LD) $(LDFLAGS) start.o forkyield.o -o forkyield.coff
+	../bin/coff2noff forkyield.coff forkyield
