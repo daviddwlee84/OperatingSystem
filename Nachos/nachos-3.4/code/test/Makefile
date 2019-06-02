@@ -35,7 +35,7 @@ CPP = gcc -E
 INCDIR =-I../userprog -I../threads
 CFLAGS = -G 0 -c $(INCDIR)
 
-all: halt shell matmult sort fibonacci exit
+all: halt shell matmult sort fibonacci exit filesyscall
 
 start.o: start.s ../userprog/syscall.h
 	$(CPP) $(CPPFLAGS) start.c > strt.s
@@ -79,3 +79,10 @@ exit.o: exit.c
 exit: exit.o start.o
 	$(LD) $(LDFLAGS) start.o exit.o -o exit.coff
 	../bin/coff2noff exit.coff exit
+
+# For Lab5: Test file system syscall
+filesyscall.o: filesyscall.c
+	$(CC) $(CFLAGS) -c filesyscall.c
+filesyscall: filesyscall.o start.o
+	$(LD) $(LDFLAGS) start.o filesyscall.o -o filesyscall.coff
+	../bin/coff2noff filesyscall.coff filesyscall

@@ -1,4 +1,4 @@
-/* halt.c
+/* exit.c
  *	Simple program to test multi-thread user program (Lab 4)
  */
 
