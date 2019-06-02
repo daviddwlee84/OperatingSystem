@@ -444,6 +444,8 @@ int main() {
 }
 ```
 
+> Why I have to define the string in that way: [here](#assertion-failed-when-define-a-string-using-the-normal-c-way-for-user-program)
+
 ```txt
 $ docker run -it nachos nachos/nachos-3.4/code/userprog/nachos -d S -x nachos/nachos-3.4/code/test/filesyscall
 Received Create syscall (r4 = 1464): File "test.txt" created.
@@ -472,6 +474,42 @@ And it will generate the "test.txt" file in docker under `code/userprog`.
 >
 > There are basic description of the system calls in `code/userprog/syscall.h`
 
+The API of each of them defined as
+
+```cpp
+/* Address space control operations: Exit, Exec, and Join */
+
+/* This user program is done (status = 0 means exited normally). */
+void Exit(int status);
+
+/* A unique identifier for an executing user program (address space) */
+typedef int SpaceId;
+
+/* Run the executable, stored in the Nachos file "name", and return the
+ * address space identifier
+ */
+SpaceId Exec(char *name);
+
+/* Only return once the the user program "id" has finished.  
+ * Return the exit status.
+ */
+int Join(SpaceId id);
+
+/* User-level thread operations: Fork and Yield.  To allow multiple
+ * threads to run within a user program.
+ */
+
+/* Fork a thread to run a procedure ("func") in the *same* address space
+ * as the current thread.
+ */
+void Fork(void (*func)());
+
+/* Yield the CPU to another runnable thread, whether in this address space
+ * or not.
+ */
+void Yield();
+```
+
 #### Exit
 
 I've implemented the initial version Exit syscall in [virtual memory Lab](../Lab4_VirtualMemory/README.md#The-Exit-Syscall).
@@ -484,21 +522,154 @@ Here is the following procedure that a Exit syscall need to do
 3. 
 4. 
 
-#### Exec
+#### Other Address Space Control Operations: Exec, Join
 
-#### Join
+TBD
 
-#### Fork
+#### User-level Thread Operations: Fork, Yield
 
-#### Yield
+TBD
 
 ### Exercise 5: Test with user program
 
 > Write user program and invoke the system calls implemented in the Exercise 4 and test the correctness.
 
-#### Test Exec, Exit, Join
+#### Test Address Space Control Operations: Exit, Exec, Join
 
 ![Nachos Exec/Exit/Join Example](https://www2.cs.duke.edu/courses/cps110/spring00/slides/proc-ux/img005.gif)
+
+In this test I'll create a child thread using `Exec` to execute the `code/test/exit` user program that I've made for [Lab4 Exercise5](../Lab4_VirtualMemory/README.md#Test-Exercise-5).
+
+And then, after the child thread finish, it will `Join` back to the parent thread, then `Exit` and return the result state.
+
+```c
+/* execjoin.c
+ *	Simple program to test the thread syscall (Lab 6) using the
+ *  previous made "exit" program.
+ *  This is used to test the address space control operations
+ *  This will create executable Exec child with it and the parent will Join
+ *  the thread and then Exit with the result
+ */
+
+#include "syscall.h"
+
+int main() {
+    char executable[5];
+    int exitCode;
+    SpaceId sp;
+
+    executable[0] = 'e';
+    executable[1] = 'x';
+    executable[2] = 'i';
+    executable[3] = 't';
+    executable[4] = '\0';
+
+    sp = Exec(executable);
+
+    exitCode = Join(sp);
+    Exit(exitCode);
+}
+```
+
+Result:
+
+TBD
+
+#### Test User-level Thread Operations: Fork, Yield
+
+In this test program, I'll first create a file called "text.txt" and `Fork` two threads.
+These two threads will write character 'a' and 'b' in to the file for 20 and 10 times respectively.
+
+```c
+/* forkyield.c
+ *	Simple program to test the thread syscall (Lab 6)
+ *  This is used to test the user-level thread operations
+ *  This example will create two thread and each of them
+ *  will write something in the file.
+ */
+
+#include "syscall.h"
+
+char file[9];
+
+void ThreadA() {
+    char ch = 'a';
+    int i;
+    OpenFileId fd;
+
+    fd = Open(file);
+    for(i = 0; i < 20; i ++) {
+        Write(&ch, 1, fd);
+        Yield();
+    }
+}
+
+void ThreadB() {
+    char ch = 'b';
+    int i;
+    OpenFileId fd;
+
+    fd = Open(file);
+    for(i = 0; i < 10; i ++) {
+        Write(&ch, 1, fd);
+        Yield();
+    }
+}
+
+int main() {
+    file[0] = 't';
+    file[1] = 'e';
+    file[2] = 's';
+    file[3] = 't';
+    file[4] = '.';
+    file[5] = 't';
+    file[6] = 'x';
+    file[7] = 't';
+    file[8] = '\0';
+
+    Create(file);
+
+    Fork(ThreadA);
+    Fork(ThreadB);
+}
+```
+
+Result:
+
+TBD (Debug message of `-d S`)
+
+TBD (the "test.txt" content)
+
+## Trouble Shooting
+
+### Assertion failed when define a string using the normal C way for user program
+
+If define a string like this
+
+```c
+char data[5] = "test";
+```
+
+It will cause `Assertion failed: line 286, file "../machine/mipssim.cc"`
+
+```c
+// ReadMem assumes all 4 byte requests are aligned on an even
+// word boundary.  Also, the little endian/big endian swap code would
+// fail (I think) if the other cases are ever exercised.
+ASSERT((tmp & 0x3) == 0);  
+```
+
+But if using this way, then it can prevent from it.
+
+```c
+char data[5];
+
+data[0] = 't';
+data[1] = 'e';
+data[2] = 's';
+data[3] = 't';
+data[4] = '\0';
+```
 
 ## Reminder
 
@@ -510,6 +681,8 @@ TODO
 
 * [ ] Maybe print something when `Read` and `Write`
 * [ ] Check if the `if (!success) i--;` is necessary in `Read` and `Write`.
+* [ ] More detail notes and deeper implementation.
+* [ ] Exercise 5 test result when finish Exercise 4
 
 ## Resources
 
@@ -545,9 +718,9 @@ CSC546 - Operating Systems
 
 ### Example
 
-* [nachos-Lab6實習報告](https://wenku.baidu.com/view/bd03f40ee97101f69e3143323968011ca300f71e.html)
+* [nachos-Lab6實習報告](https://wenku.baidu.com/view/bd03f40ee97101f69e3143323968011ca300f71e.html) - This guy written wrong things = =
 * [SergioShen/Nachos comment: Finish lab6 exercise3: Syscall: Create, Open, Close, Write, Read](https://github.com/SergioShen/Nachos/commit/7343b11284c10b0ed22aca9200d91c1e66e15a36)
-* [SergioShen/Nachos comment: Finish lab6](https://github.com/SergioShen/Nachos/commit/3015618577c3b4b4f1b441f9e18b0f42f4f4851c)
+* [SergioShen/Nachos comment: Finish lab6](https://github.com/SergioShen/Nachos/commit/3015618577c3b4b4f1b441f9e18b0f42f4f4851c) - Exec, Fork, Yield, Join
 * [SergioShen/Nachos exception.cc](https://github.com/SergioShen/Nachos/blob/latest/code/userprog/exception.cc)
 
 Others
