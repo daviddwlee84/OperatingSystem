@@ -696,6 +696,20 @@ CSC546 - Operating Systems
   * Nachos File System
   * fileSystem
   * Nachos Write system call
+* [Lecture 7](http://condor.depaul.edu/glancast/546class/docs/lec7.html)
+  * **Exec**
+  * StartProcess
+  * Thread::Fork
+  * AddrSpace
+  * AddrSpace::AddrSpace(char * name, OpenFile* executable)
+  * AddrSpace::mapPages()
+  * AddrSpace::loadpage(int vpn, int ppn)
+* [Lecture 8](http://condor.depaul.edu/glancast/546class/docs/lec8.html)
+  * **Exec**
+  * Thread 'name' Data Member
+  * Next Assignment
+  * Unix fork and wait
+  * Join
 * [**Lecture 9**](http://condor.depaul.edu/glancast/546class/docs/lec9.html)
   * Join
   * **Thread Class Additions**
@@ -704,6 +718,7 @@ CSC546 - Operating Systems
   * Join Details
   * Exec Changes
   * **Exit Changes**
+* [Assignment: Implementing Join](http://condor.depaul.edu/glancast/546class/docs/lec10.html)
 
 [CPS 110 / EE 153 Operating Systems (Duke University)](https://users.cs.duke.edu/~chase/cps110/)
 

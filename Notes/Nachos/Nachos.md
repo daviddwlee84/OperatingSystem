@@ -31,9 +31,9 @@ Folder
 * bin: for MIPS interpreter (coff2noff)
 * machine: for MIPS environment simulation
 * threads: main and threads
-* userprog: user-space program
-* test: some test user program
-* filesys
+* userprog: user program, system call and exception
+* test: some user program test
+* filesys: file system
 * network
 * vm
 
@@ -41,7 +41,7 @@ Folder
 
 ## Executables
 
-* `nachos`: one for each compile (subdirectory test)
+* `nachos`: one for each compile (subdirectory "machines" which with different define/macro settings)
 * `coff2noff`: converting a COFF (Common Object File Format) file to a NOFF file (Nachos Object File Format)
 
 ### coff2noff
@@ -170,6 +170,8 @@ gdb nachos
 
 ### UC Berkeley
 
+> Developed originally at U.C., Berkeley.
+
 * [CS162: Operating Systems and Systems Programming](https://cs162.eecs.berkeley.edu/)
   * Book Reading
     * Operating Systems: Principles and Practice 2nd Edition (Required)
@@ -203,6 +205,16 @@ gdb nachos
   * [pdf](https://inst.eecs.berkeley.edu/~cs162/sp08/Nachos/walk/walk.pdf)
 * [Github - Nachos for Java](https://github.com/thinkhy/CS162/tree/master/nachos)
 * [Nachos Projects](https://people.eecs.berkeley.edu/~kubitron/courses/cs162-F05/Nachos/index.html)
+
+### CSC546 - Operating Systems
+
+> Goal
+>
+> * Implement system calls for Read, Write, Exit, Join, Exec, etc.
+> * Implement vitual memory so that multiple programs can be in memory at the same time.
+> * Implement paging so that Mips physical memory limitations don't limit the number or size of the Mips user programs that can execute concurrently.
+
+* [Lecture 1](http://condor.depaul.edu/glancast/546class/docs/lec1.html)
 
 ### Duke University
 

@@ -1964,6 +1964,29 @@ The string length is greater than the array size.
 
 * [**Introducing User Programs into Nachos**](https://users.cs.duke.edu/~raw/cps110.s04/Lectures/NachosUserProgs.pdf)
 
+CSC546 - Operating Systems
+
+* [Lecture 5](http://condor.depaul.edu/glancast/546class/docs/lec5.html)
+  * Write
+  * Read
+  * DEBUG
+  * **Address Spaces and Address Translation**
+  * **Page Tables (versus TLB)**
+  * **User Program Context Switches (Again)**
+  * **Nachos Object File Format (Noff)**
+  * **Loading User Programs into Mips Memory**
+* [Lecture 6](http://condor.depaul.edu/glancast/546class/docs/lec6.html)
+static char arrays
+  * OpenFile (again)
+  * Console I/O
+  * Nachos (C++) Semaphore class
+  * **Virtual Memory**
+  * **BitMap**
+  * Adding a C++ class to Nachos
+  * CoreMap
+  * Exceptions: machine/machine.h
+  * **PageFaultException**
+
 ### Book
 
 * Nachos Study Book Part III Storage Management
