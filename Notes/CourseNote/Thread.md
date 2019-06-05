@@ -8,13 +8,13 @@ Why we need thread inside the process?
 * Cost
 * Performance
 
-If without thread?
+If **without** thread?
 
-* Single service process
+* **Single service process**
   * lower performance
   * sequencial programming (i.e. simple)
-* Finite state machine
-  * use non-blocking I/O
+* **Finite state machine**
+  * use **non-blocking I/O**
     * [Wiki - Asynchronous I/O](https://en.wikipedia.org/wiki/Asynchronous_I/O)
   * complex programming model
 
@@ -32,7 +32,7 @@ Finite-state machine|Parallelism, nonblocking system calls, interrupts
 
 Thread: a instance of a process, the scheduling unit of CPU
 
-* sometimes called light-weight process
+* sometimes called **light-weight process**
 
 ### Thread Attribute
 
@@ -40,7 +40,7 @@ Thread: a instance of a process, the scheduling unit of CPU
 * need to store *context* while not running
   * registers (e.g. program counter, etc.)
 * has its own stack and stack pointer
-    > return value of function is in stack
+    > return value of function is in the stack
 * share process address space and other resources
 
 ![OS concepts threads](https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/images/Chapter4/4_01_ThreadDiagram.jpg)
@@ -51,12 +51,19 @@ Thread: a instance of a process, the scheduling unit of CPU
   * Implement in user space
   * e.g. Use [POSIX Pthreads](https://en.wikipedia.org/wiki/POSIX_Threads) library
 * Kernel level thread
-  * Implement by modify kernel or OS
+  * Implement by modifying kernel or OS
 * Mix these two together
+  * Creating thread in user space and scheduling in kernel space
+  * Many user threads share (run on) a kernel thread
+  * e.g. Solaris
 
 ### User Level Thread
 
-TBD
+* Pros and Cons
+  * Pros
+    * It can run on any OS (just need the library)
+  * Cons
+    * Most of the system call is blocking, thus if kernel block the "process" then all the thread the process has will be blocked too. (because in the aspect of OS, there is only one process)
 
 #### POSIX Pthreads
 
@@ -84,11 +91,33 @@ TBD
 
 ### Kernel Level Thread
 
-TBD
+Example in real world
+
+#### Linux Thread
+
+Linux does not distinguish between processes and threads - It uses the more generic term "tasks"
+
+Check out the `task_struct`
+
+* `fork()`
+* `clone()`
 
 #### Windows Thread Library
+
+![Windows thread](https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/images/Chapter4/4_14_WindowsThreadStructures.jpg)
+
+## Conclusion of Thread and Process
+
+Process is the "owner of resources" (e.g. Memory); Thread is the deploy unit of CPU
 
 ## Resources
 
 * [OS Course notes - Threads](https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/4_Threads.html)
 * [Kernel level thread and User level Thread](https://www.embhack.com/kernel-level-thread-and-user-level-thread/)
+
+### Book
+
+Operating System Concepts 9ed.
+
+* Notes
+  * [Threads](https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/4_Threads.html)

@@ -20,29 +20,49 @@ Definition of Process
 ### 3 Basic Status
 
 * **Running**
+  * Occupy the CPU resouces
 * **Ready**
-* **Waiting/Blocked**
+  * Ready to run, just waiting for the CPU
+* **Waiting/Blocked** (Sleeping)
+  * Waiting a event to be completed
+    * I/O
+  * Mostly wake by interrupt
 
 ### 2 More Status
 
 * **New/Created**
-* **Terminated**
+  * Finish some necessary task
+    * allocate PID
+    * allocate PCB
+  * Haven't allow to run (or it will be Running state)
+* **Terminated** (Zombie)
+  * Some resouce reclaim or waiting for others (parent) to terminate
 
 #### 5 Status Model
 
 ### 1 More Status
 
 * **Suspend**
+  * SWAP out the process from memory to secondary memory (disk)
 
 #### 7 Status Model
 
 ![7 Status](https://upload.wikimedia.org/wikipedia/commons/8/83/Process_states.svg)
 
+![7 Status](https://i0.wp.com/blog.oureducation.in/wp-content/uploads/2013/10/CPU-Scheduling.png?ssl=1)
+
 ### Linux Process Status
+
+* `TASK_RUNNING`
+* `TASK_UNINTERRUPTABLE`
+* `TASK_INTERRUPTABLE`
+* `TASK_STOPPED`
+* `TASK_ZOMBIE`
 
 ## Process Control Block (PCB)
 
 * It's the only sign that system know a process existing
+
 
 > Alias: Task Controlling Block, Entry of the Process Table, Task Struct, Switchframe
 
@@ -54,20 +74,28 @@ Definition of Process
   * Process management
     * Process ID
     * Program counter (PC)
+    * Priority
+    * Process state
   * Memory management
+    * Kernel stack
+    * Page table
   * File management
     * User ID
     * Group ID
 
-PCB Table: A set for all the process's PCB
-
 * [Wiki - Process control block](https://en.wikipedia.org/wiki/Process_control_block)
 
-### Real-World Example
+PCB Table: A set for all the process's PCB
 
-#### Linux TASK_STRUCT
+* This can be an array (XV6)
+* Or can be a linked list
 
-#### Windows EPROCESS, KPROCESS, PEB
+> [Real-World Example](Thread.md#Kernel-Level-Thread)
+>
+> * In Linux: `task_struct` (kernel process)
+>   * [Thread in Linux Notes](https://github.com/daviddwlee84/LinuxKernel/blob/master/Notes/LinuxProcess.md#process-in-linux)
+> * In XV6: `proc`
+> * In Windows: `EPROCESS`, `KPROCESS`, `PEB`
 
 ## Process Address Space
 
@@ -105,7 +133,7 @@ PCB Table: A set for all the process's PCB
 
 ## Context Switch
 
-Cost for Context Switching: saving and loading registers and memory maps, updating various tables and lists, etc
+Cost for Context Switching: **saving and loading registers** and memory maps, updating various tables and lists, etc
 
 Example of Linux Kernel: context switching involves switching registers, stack pointer, and program counter, but is independent of address space switching, though in a process switch an address space switch also happens.
 
@@ -113,7 +141,11 @@ Example of Linux Kernel: context switching involves switching registers, stack p
 
 [CPU Scheduling](CPUScheduling.md#Process-Context-Switch)
 
+![context switch](https://www.tutorialspoint.com/operating_system/images/context_switch.jpg)
+
 ## Process Queue
+
+![process queue](https://www.tutorialspoint.com/operating_system/images/queuing_diagram.jpg)
 
 ## Process Control and System Call
 
@@ -174,3 +206,10 @@ Process hierarchy structure
 * [Wiki - Process management (computing)](https://en.wikipedia.org/wiki/Process_management_(computing))
 * [Shichao's Notes Chapter 3. Process Management](https://notes.shichao.io/lkd/ch3/)
 * [**In-Memory Layout of a Program (Process)**](https://gabrieletolomei.wordpress.com/miscellanea/operating-systems/in-memory-layout/)
+
+### Book
+
+Operating System Concepts 9ed.
+
+* Notes
+  * [Processes](https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/3_Processes.html)
