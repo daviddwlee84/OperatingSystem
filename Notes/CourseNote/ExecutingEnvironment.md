@@ -12,17 +12,17 @@ Application <----> OS <----> Hardware
 
 ## Terminology
 
-Exceptional Control Flow (ECF) 異常控制流
+**Exceptional Control Flow (ECF)** 異常控制流
 
 * [Quizlet - Exceptional Control Flow](https://quizlet.com/15774161/exceptional-control-flow-flash-cards/)
 
-Interrupt Descriptor Table (IDT) 中斷描述符表
+[**Interrupt Descriptor Table (IDT)**](#interrupt-descriptor-table-idt) 中斷描述符表
 
 * [Wiki - Interrupt descriptor table](https://en.wikipedia.org/wiki/Interrupt_descriptor_table)
-
-> IDTR Interrupt Descriptor Table Register
-
-[![stackoverflow IDTR w/ IDT](https://i.stack.imgur.com/Cld0q.png)](https://stackoverflow.com/questions/14551424/figuring-out-physical-address-by-hand-the-idtr-register)
+* [Interrupt Descriptor Table](https://wiki.osdev.org/Interrupt_Descriptor_Table)
+* [中斷描述表](https://www.csie.ntu.edu.tw/~wcchen/asm98/asm/proj/b85506061/chap4/idt.html)
+* [中斷描述符表](http://guojing.me/linux-kernel-architecture/posts/interrupt-descriptor-table/)
+* [Youtube - Accessing the Interrupt Descriptor Table](https://www.youtube.com/watch?v=2s5kJl71GTU)
 
 ## OS vs. Hardware
 
@@ -169,19 +169,37 @@ In the last step of execution cycle, it will scan the interrupt register check i
 
 If there is an interrupt, then interrupt hardware will send the "interrupt code" in the corresponding position in PSW. Through switching *interrupt vector* to call the interrupt handler.
 
+#### Interrupt Descriptor Table (IDT)
+
+> Location of IDT (address and size) is kept in the IDTR register of the CPU, which can be loaded/stored using LIDT, SIDT instructions
+
+This is similar to the GDT
+
+> IDTR Interrupt Descriptor Table Register
+>
+> The processor has a special register (IDTR) to store both the physical base address and the length in bytes of the IDT
+
+[![stackoverflow IDTR w/ IDT](https://i.stack.imgur.com/Cld0q.png)](https://stackoverflow.com/questions/14551424/figuring-out-physical-address-by-hand-the-idtr-register)
+
 #### Interrupt Vector Table (IVT)
+
+> On the x86 architecture, the Interrupt Vector Table (IVT) is a table that specifies the addresses of all the 256 interrupt handlers used in real mode.
 
 It's a unit in the memory. Store the entry address of interrupt handler and PSW.
 
 * [Wiki - Interrupt vector table](https://en.wikipedia.org/wiki/Interrupt_vector_table)
+* [Interrupt Vector Table](https://wiki.osdev.org/IVT)
 
 > Linux interrupt vector
 >
 > * [128 (0x80)](#system-call-in-linux-based-on-x86): for system call (programmable exception)
 
-#### Interrupt handler
+#### Interrupt Handler (Interrupt Service Routine)
+
+> The x86 architecture is an interrupt driven system. External events trigger an interrupt — the normal control flow is interrupted and an Interrupt Service Routine (ISR) is called
 
 * [Wiki - Interrupt handler](https://en.wikipedia.org/wiki/Interrupt_handler) (中斷處理程序)
+* [Interrupt Service Routines](https://wiki.osdev.org/Interrupt_Service_Routines)
 
 Procedure
 
@@ -231,7 +249,7 @@ IA32 system structure
   * Store the *address of **interrupt handler***
     * handler entry address = segment base address + offset
 * Interrupt Descriptor Table (Protection Mode)
-  * Use data structure *gate descripter* to describe interrupt vector
+  * Use data structure *gate descriptor* to describe interrupt vector
 
 Gates in Interupt Descriptor Table
 
@@ -246,7 +264,7 @@ Procedure of Interrupt in x86
 
 1. Get the *interrupt vector* (i)
 2. Use IDTR find IDT then get *interrupt descriptor* (ith item in the table)
-3. From GDTR get the address of GDT
+3. From GDTR get the address of [GDT](https://wiki.osdev.org/GDT) (GDT contains entries telling the CPU about memory segments)
 4. Combine the *section selector* and get the corresponding section selector from GDT
 5. From that *section selector* get the *base address* of *interrupt handler*
    * handler entry address = section base address + offset
@@ -451,7 +469,7 @@ In Linux, all the system call use the same single entrance `int`: 0x80
     * CPU assign a new stack pointer (SS: ESP) which point to kernel stack in TSS (Task State Segment)
 2. Push `EFLAGS` into stack, resume TF (Trap Frame), IF stay remain
 3. Find the gate descriptor in IDT by 0x80. Find the segment selector assign to CS (Code Segment) register
-4. Calculate the "base address of segment descriptor" + "offset in the trap gate descripter" to locate the entry address of the system call handler
+4. Calculate the "base address of segment descriptor" + "offset in the trap gate descriptor" to locate the entry address of the system call handler
 
 * Privilege check
   * code can only access same or lower privilege data
