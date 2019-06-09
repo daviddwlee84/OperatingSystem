@@ -62,6 +62,47 @@ PKU OS course project and notes based on Nachos and XV6.
 * [Deadlock](Notes/CourseNote/Deadlock.md)
 * [File System](Notes/CourseNote/FileSystem.md)
 
+#### Summary
+
+Algorithm
+
+* Scheduling Algorithm
+  * Process/Thread CPU Scheduling
+  * Disk Scheduling
+* Replacement Algorithm
+  * Page Replacement
+  * TLB Replacement
+  * Cache Replacement
+* Other Algorithm
+  * Deadlock
+    * Deadlock prevention
+    * Deadlock avoidance
+    * Deadlock discover and recover
+* Solutions
+  * Concurrency
+    * Semaphore
+      * Dekker Solution
+      * Peterson Solution
+  * Deadlock
+    * Banker's Algorithm
+
+Data Structure
+
+* Free Space Management (for Memory or Disk)
+  * Bitmap (Bit vector)
+  * Free Table
+  * Free Linked List
+* Concurrency
+  * Semaphore
+  * Monitor
+    * Hoare Monitor
+    * Mesa Monitor
+  * Mutex Lock + Condition Variable
+
+Hardware
+
+* TLB vs. Cache
+
 ## Resources
 
 ### Books

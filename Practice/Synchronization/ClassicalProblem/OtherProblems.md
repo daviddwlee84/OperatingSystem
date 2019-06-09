@@ -115,6 +115,10 @@ This solution need 7 semaphore
 
 ## Sleeping Barber Problem
 
+![sleeping barber](http://cse.csusb.edu/tongyu/courses/cs460/images/ipc/sleepingbarber.jpg)
+
+![sleeping barber procedure](http://cse.csusb.edu/tongyu/courses/cs460/images/ipc/sbchart.png)
+
 * There is a barber. A barber's char in the cutting room. N chairs in waiting room.
 * If no customer then barber go to sleep.
 * The first customer need to wake the barber up.

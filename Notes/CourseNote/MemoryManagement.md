@@ -84,6 +84,8 @@ Recap the Process address space (This is *virtual memory space*)
   * Data
   * Code
 
+![memory layout](https://i.stack.imgur.com/dvK8G.png)
+
 ![Figure 9.2 - Virtual address space](https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/images/Chapter9/9_02_VirtualAddressSpace.jpg)
 
 Note that the process address space is stored in the PCB as a *balanced binary tree*. And the unused data (page) won't be put in the tree.
@@ -443,6 +445,8 @@ Common PTE (differ from system)
   * stack & heap (no need for data and code section)
 * Where does the swapping things goes => the **SWAP** space
 
+![The data structures for swapping on Linux systems](https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/images/Chapter10/10_10_LinuxSwapping.jpg)
+
 ### Virtual (Paging) Memory Management
 
 > Use "CPU **Time** and Disk Space" exchange "Memory **Space**"
@@ -738,6 +742,8 @@ Operating System Concepts 9ed. Part 3 Memory Management
   * Ch9.4 Page Replacement
     * Ch9.4.7 Page-Buffering Algorithms
   * Ch9.7 Memory-Mapped Files
+* Ch10 Mass-Storage Structure
+  * Ch10.6 Swap-Space Management
 * Notes
   * [Main Memory](https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/8_MainMemory.html)
   * [Virtual Memory](https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/9_VirtualMemory.html)

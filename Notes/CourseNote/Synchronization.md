@@ -83,9 +83,9 @@ Overview
 * Only one process in the group can be allowed to execute in their critical section at any one time
   * If one process is already executing their critical section and another process wishes to do so, then the second process must be made to wait until the first process has completed their critical section work.
 * The process not int the critical section should not block other process to get in the critical section
-  * or will cause Deadlock
+  * or will cause [Deadlock](Deadlock.md#Deadlock)
 * Should not let a process wait for the critical section forever
-  * this is Starvation
+  * this is [Starvation](Starvation.md#Starvation)
 
 ![process and critical region](http://cse.csusb.edu/tongyu/courses/cs460/images/process/mutual.png)
 
