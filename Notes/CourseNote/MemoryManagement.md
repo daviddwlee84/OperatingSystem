@@ -79,8 +79,8 @@ Recap the Process address space (This is *virtual memory space*)
 
 * Kernel address space
 * User address space
-  * Heap
   * Stack
+  * Heap
   * Data
   * Code
 
@@ -676,9 +676,11 @@ The Scenario
     * TLBI: 0~1 bit of VPN (*2-bit*)
     * TLBT: the rest of VPN
 * Page Table
+
     | VPN  | PPN  | Valid |
     | ---- | ---- | ----- |
     | test | test | test  |
+
 * Cache
   * **16 lines**, *4-byte block size*
     * CO: 0~1 bit (*2 offset bits*)
@@ -695,6 +697,7 @@ VA: 0x03D4
 
 * [5.2 Page Translation](http://www.logix.cz/michal/doc/i386/chp05-02.htm)
 * [Supercharged Computing Notes - Linux Memory Management](https://superchargedcomputing.com/2018/03/01/linux-memory-management/)
+* [GeeksforGeeks - Stack vs Heap Memory Allocation](https://www.geeksforgeeks.org/stack-vs-heap-memory-allocation/)
 
 ### Book
 

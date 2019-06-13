@@ -53,6 +53,8 @@ For multiple processes they have some kinds of "sequence dependency"
 
 ## Race Condition
 
+In this condition a piece of code may or may not work correctly, depending on which of two simultaneous processes executes first, and more importantly if one of the processes gets interrupted such that the other process runs between important steps of the first process.
+
 Sometimes race conditions are also very difficult to reproduce (happen only in a sepecial executing order)
 
 ### Example of Spooling - Print Job Request

@@ -63,7 +63,6 @@ Definition of Process
 
 * It's the only sign that system know a process existing
 
-
 > Alias: Task Controlling Block, Entry of the Process Table, Task Struct, Switchframe
 
 * PCB structure (wiki)
