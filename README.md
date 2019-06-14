@@ -24,10 +24,10 @@ PKU OS course project and notes based on Nachos and XV6.
 ### XV6 Source Code Reading
 
 1. [Process and Thread (with Scheduling)](Notes/XV6/XV6ProcessThread.md)
-2. Synchronization Mechanism
-3. Interrupt and System Call
-4. Memory Management
-5. File System
+2. [Synchronization Mechanism](Notes/XV6/XV6Synchronization.md)
+3. [Interrupt and System Call](Notes/XV6/XV6InterruptSyscall.md)
+4. [Memory Management](Notes/XV6/XV6Memory.md)
+5. [File System](Notes/XV6/XV6FileSystem.md)
 
 ### Additional Task
 
