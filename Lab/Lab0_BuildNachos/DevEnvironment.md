@@ -55,11 +55,11 @@ Build the modified version in this github repository
 bash build_modified_nachos.sh
 # the outcome image will be nachos:latest and nachos:0.1 (default)
 
-# or can take the argement of version
+# it can also take an argument of a specific version
 ./build_modified_nachos.sh 0.1.1
 ```
 
-Build only the specific subdirectory (Recommend)
+Build only the specific subdirectory (**Recommend**, especially when you're just dealing with a specific Lab)
 
 ```sh
 # build threads for example (use any subdirectory name under nachos-3.4/code/)
@@ -76,7 +76,7 @@ Running example
 $ docker run -it nachos:0.0.1
 
 # Interactive with mount local project
-# (Run this in the root of this repositoy)
+# (Run this in the root of this repository)
 $ docker run -it -v $(pwd)/Nachos:/Nachos nachos:latest
 
 # Run a single test
