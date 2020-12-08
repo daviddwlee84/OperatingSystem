@@ -909,7 +909,7 @@ This is the spring of our discontent.\a
 
 In [previous exercise](#1-1.-header-structure) we've met the macro `NumDirect`. This is a number of how many direct indexing a FileHeader can have.
 
-But just after we've change the amount of `NumDirect` since we need to add additional file header attributes. The direct mapping index has reduced from 30 to 9 (in [previous exercise](#1-1.-header-structure)). That is, max file (data) size (block map) is reduce from 3804 bytes (30 × 128KB) to 1152 bytes (9 × 128KB). So we really need the indirect indexing.
+But just after we've change the amount of `NumDirect` since we need to add additional file header attributes. The direct mapping index has reduced from 30 to 9 (in [previous exercise](#1-1.-header-structure)). That is, max file (data) size (block map) is reduce from 3840 bytes (30 × 128B) to 1152 bytes (9 × 128B). So we really need the indirect indexing.
 
 #### File allocation/deallocation and Offset positioning
 
